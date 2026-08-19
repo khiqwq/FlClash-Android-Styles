@@ -15,6 +15,14 @@ import 'util.dart';
 
 final _log = Logger('go_builder');
 
+ProcessResult _runCompilerVersion(String compiler) {
+  if (Platform.isWindows &&
+      (compiler.endsWith('.cmd') || compiler.endsWith('.bat'))) {
+    return runCommand('cmd.exe', ['/c', compiler, '--version']);
+  }
+  return runCommand(compiler, ['--version']);
+}
+
 String _resolveCc(Target target) {
   final ndk = Environment.androidNdk;
   final prebuiltDir = Directory(
@@ -27,7 +35,12 @@ String _resolveCc(Target target) {
   if (entries.isEmpty) {
     throw BuildException('No NDK prebuilt toolchain found in $prebuiltDir');
   }
-  return p.join(entries.first.path, 'bin', target.ndkCcName);
+  final compiler = p.join(entries.first.path, 'bin', target.ndkCcName);
+  if (!Platform.isWindows) {
+    return compiler;
+  }
+  final command = '$compiler.cmd';
+  return File(command).existsSync() ? command : compiler;
 }
 
 class GoBuilder {
@@ -199,7 +212,7 @@ class GoBuilder {
 
     if (target.isLib) {
       final compiler = env['CC']!;
-      final compilerVersion = runCommand(compiler, ['--version']);
+      final compilerVersion = _runCompilerVersion(compiler);
       builder.addValue(
         'android_compiler',
         '${(compilerVersion.stdout as String).trim()}\n'

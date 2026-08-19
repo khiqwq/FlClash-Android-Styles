@@ -303,11 +303,41 @@ void main() {
       expect(props.themeMode, ThemeMode.dark);
       expect(props.pureBlack, false);
       expect(props.textScale.scale, 1.0);
+      expect(props.interfaceStyle, InterfaceStyle.material);
+      expect(props.blur, false);
+      expect(props.floatingBottomBar, false);
+      expect(props.liquidGlass, false);
+      expect(props.predictiveBack, true);
+      expect(props.toJson()['interfaceStyle'], 'material');
     });
 
     test('safeFromJson returns default on null', () {
       final result = ThemeProps.safeFromJson(null);
       expect(result.themeMode, ThemeMode.dark);
+    });
+
+    test('legacy JSON receives Android appearance defaults', () {
+      final result = ThemeProps.fromJson({});
+
+      expect(result.interfaceStyle, InterfaceStyle.material);
+      expect(result.blur, false);
+      expect(result.floatingBottomBar, false);
+      expect(result.liquidGlass, false);
+      expect(result.predictiveBack, true);
+    });
+
+    test('unknown interface style preserves other theme preferences', () {
+      final result = ThemeProps.fromJson({
+        'primaryColor': 0xFF123456,
+        'themeMode': 'light',
+        'pureBlack': true,
+        'interfaceStyle': 'future-style',
+      });
+
+      expect(result.primaryColor, 0xFF123456);
+      expect(result.themeMode, ThemeMode.light);
+      expect(result.pureBlack, true);
+      expect(result.interfaceStyle, InterfaceStyle.material);
     });
 
     test('round-trip with custom values', () {
@@ -316,12 +346,27 @@ void main() {
         themeMode: ThemeMode.light,
         pureBlack: true,
         textScale: TextScale(enable: true, scale: 1.5),
+        interfaceStyle: InterfaceStyle.miuix,
+        blur: true,
+        floatingBottomBar: true,
+        liquidGlass: true,
+        predictiveBack: false,
       );
       final restored = roundTrip(() => props.toJson(), ThemeProps.fromJson);
       expect(restored.primaryColor, 0xFF123456);
       expect(restored.themeMode, ThemeMode.light);
       expect(restored.pureBlack, true);
       expect(restored.textScale.scale, 1.5);
+      expect(restored.interfaceStyle, InterfaceStyle.miuix);
+      expect(restored.blur, true);
+      expect(restored.floatingBottomBar, true);
+      expect(restored.liquidGlass, true);
+      expect(restored.predictiveBack, false);
+      expect(props.toJson()['interfaceStyle'], 'miuix');
+      expect(props.toJson()['blur'], true);
+      expect(props.toJson()['floatingBottomBar'], true);
+      expect(props.toJson()['liquidGlass'], true);
+      expect(props.toJson()['predictiveBack'], false);
     });
   });
 

@@ -1,0 +1,89 @@
+name: Android interface build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - khiqwq-android-interface-styles
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Build Android arm64 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.4'
+          cache: true
+
+      - name: Setup Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28c
+          add-to-path: true
+          link-to-sdk: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test Android appearance
+        run: >-
+          flutter test
+          test/models/config_test.dart
+          test/providers/config_test.dart
+          test/l10n/app_localizations_test.dart
+          test/l10n/localization_contract_test.dart
+          test/common/appearance_theme_test.dart
+          test/common/navigator_test.dart
+          test/pages/navigation_bar_appearance_test.dart
+          test/widgets/theme_settings_test.dart
+          test/widgets/views_smoke_test.dart
+          test/widgets/scaffold_back_test.dart
+          test/android_predictive_back_test.dart
+          test/liquid_glass_shader_test.dart
+          --reporter expanded
+
+      - name: Build release APK
+        env:
+          ANDROID_NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: >-
+          flutter build apk
+          --release
+          --target-platform android-arm64
+          --split-per-abi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlClash-Android-interface-arm64-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 14

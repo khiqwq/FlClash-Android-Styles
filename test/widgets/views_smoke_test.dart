@@ -90,7 +90,7 @@ void main() {
   }
 
   final toolDestinations = <String, Type>{
-    'Theme': ThemeView,
+    'Theme settings': ThemeView,
     'Backup and Restore': BackupAndRestore,
     'Basic configuration': ConfigView,
     'Advanced configuration': AdvancedConfigView,

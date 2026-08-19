@@ -15,6 +15,78 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('explicit canPop allows predictive route pop', (tester) async {
+    var onPopCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            return TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CommonPopScope(
+                      canPop: true,
+                      onPop: (_) {
+                        onPopCount++;
+                        return true;
+                      },
+                      child: const Scaffold(body: Text('destination')),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('open'),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<CommonPopScope>(find.byType(CommonPopScope)).canPop,
+      true,
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('destination'), findsNothing);
+    expect(onPopCount, 0);
+  });
+
+  testWidgets('explicit canPop veto handles special state locally', (
+    tester,
+  ) async {
+    var onPopCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CommonPopScope(
+          canPop: false,
+          onPop: (_) {
+            onPopCount++;
+            return false;
+          },
+          child: const Scaffold(body: Text('special state')),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<CommonPopScope>(find.byType(CommonPopScope)).canPop,
+      false,
+    );
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(find.text('special state'), findsOneWidget);
+    expect(onPopCount, 1);
+  });
+
   testWidgets('back layers are consumed from inner to outer', (tester) async {
     var innerActive = true;
     var outerActive = true;

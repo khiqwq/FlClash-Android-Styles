@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -71,6 +72,7 @@ class _ToolViewState extends ConsumerState<ToolsView> {
       title: context.appLocalizations.settings,
       items: [
         const _LocaleItem(),
+        if (system.isAndroid) const InterfaceStyleSelector(),
         const _ThemeItem(),
         const _BackupItem(),
         if (system.isDesktop) const _HotkeyItem(),
@@ -162,6 +164,42 @@ class _ThemeItem extends StatelessWidget {
       title: Text(context.appLocalizations.theme),
       subtitle: Text(context.appLocalizations.themeDesc),
       widget: const ThemeView(),
+    );
+  }
+}
+
+class InterfaceStyleSelector extends ConsumerWidget {
+  const InterfaceStyleSelector({super.key});
+
+  String _getLabel(BuildContext context, InterfaceStyle style) {
+    return switch (style) {
+      InterfaceStyle.material => context.appLocalizations.materialStyle,
+      InterfaceStyle.miuix => context.appLocalizations.miuixStyle,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final interfaceStyle = ref.watch(
+      themeSettingProvider.select((state) => state.interfaceStyle),
+    );
+    return ListItem<InterfaceStyle>.options(
+      key: const ValueKey('interface-style-selector'),
+      leading: const Icon(Icons.dashboard_customize_outlined),
+      title: Text(context.appLocalizations.interfaceStyle),
+      subtitle: Text(_getLabel(context, interfaceStyle)),
+      dialogTitle: context.appLocalizations.interfaceStyle,
+      options: InterfaceStyle.values,
+      value: interfaceStyle,
+      textBuilder: (style) => _getLabel(context, style),
+      onChanged: (value) {
+        if (value == null) {
+          return;
+        }
+        ref
+            .read(themeSettingProvider.notifier)
+            .update((state) => state.copyWith(interfaceStyle: value));
+      },
     );
   }
 }

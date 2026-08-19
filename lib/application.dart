@@ -3,14 +3,15 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/manager/hotkey_manager.dart';
 import 'package:fl_clash/manager/manager.dart';
+import 'package:fl_clash/models/config.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,15 +28,6 @@ class ApplicationState extends ConsumerState<Application> {
   Timer? _autoUpdateProfilesTaskTimer;
   bool _preHasVpn = false;
 
-  final _pageTransitionsTheme = const PageTransitionsTheme(
-    builders: <TargetPlatform, PageTransitionsBuilder>{
-      TargetPlatform.android: commonSharedXPageTransitions,
-      TargetPlatform.windows: commonSharedXPageTransitions,
-      TargetPlatform.linux: commonSharedXPageTransitions,
-      TargetPlatform.macOS: commonSharedXPageTransitions,
-    },
-  );
-
   ColorScheme _getAppColorScheme({
     required Brightness brightness,
     int? primaryColor,
@@ -43,10 +35,41 @@ class ApplicationState extends ConsumerState<Application> {
     return ref.read(genColorSchemeProvider(brightness));
   }
 
+  AppearanceTheme _getAppearanceTheme(ThemeProps themeProps) {
+    return resolveAppearanceTheme(
+      isAndroid: system.isAndroid,
+      interfaceStyle: themeProps.interfaceStyle,
+      blur: themeProps.blur,
+      floatingBottomBar: themeProps.floatingBottomBar,
+      liquidGlass: themeProps.liquidGlass,
+    );
+  }
+
+  ThemeData _getThemeData({
+    required Brightness brightness,
+    required ThemeProps themeProps,
+    required AppearanceTheme appearanceTheme,
+  }) {
+    final colorScheme = _getAppColorScheme(
+      brightness: brightness,
+      primaryColor: themeProps.primaryColor,
+    );
+    final theme = ThemeData(
+      useMaterial3: true,
+      pageTransitionsTheme: buildPageTransitionsTheme(
+        predictiveBack: themeProps.predictiveBack,
+      ),
+      extensions: [appearanceTheme],
+      colorScheme: brightness == Brightness.dark
+          ? colorScheme.toPureBlack(themeProps.pureBlack)
+          : colorScheme,
+    );
+    return applyAppearanceComponentTheme(theme, appearanceTheme);
+  }
+
   @override
   void initState() {
     super.initState();
-    SystemNavigator.setFrameworkHandlesBack(true);
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       if (globalState.navigatorKey.currentContext != null) {
         await globalState.attach();
@@ -139,10 +162,10 @@ class ApplicationState extends ConsumerState<Application> {
           appSettingProvider.select((state) => state.locale),
         );
         final themeProps = ref.watch(themeSettingProvider);
+        final appearanceTheme = _getAppearanceTheme(themeProps);
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           navigatorKey: globalState.navigatorKey,
-          onNavigationNotification: (_) => true,
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
@@ -163,21 +186,15 @@ class ApplicationState extends ConsumerState<Application> {
           locale: utils.getLocaleForString(locale),
           supportedLocales: AppLocalizations.delegate.supportedLocales,
           themeMode: themeProps.themeMode,
-          theme: ThemeData(
-            useMaterial3: true,
-            pageTransitionsTheme: _pageTransitionsTheme,
-            colorScheme: _getAppColorScheme(
-              brightness: Brightness.light,
-              primaryColor: themeProps.primaryColor,
-            ),
+          theme: _getThemeData(
+            brightness: Brightness.light,
+            themeProps: themeProps,
+            appearanceTheme: appearanceTheme,
           ),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            pageTransitionsTheme: _pageTransitionsTheme,
-            colorScheme: _getAppColorScheme(
-              brightness: Brightness.dark,
-              primaryColor: themeProps.primaryColor,
-            ).toPureBlack(themeProps.pureBlack),
+          darkTheme: _getThemeData(
+            brightness: Brightness.dark,
+            themeProps: themeProps,
+            appearanceTheme: appearanceTheme,
           ),
           home: child!,
         );

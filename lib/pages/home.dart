@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/app_manager.dart';
 import 'package:fl_clash/models/common.dart';
@@ -38,8 +39,29 @@ class HomePage extends ConsumerWidget {
               final isMobile = state.viewMode == ViewMode.mobile;
               final navigationItems = state.navigationItems;
               final currentIndex = state.currentIndex;
+              final appearance =
+                  Theme.of(context).extension<AppearanceTheme>() ??
+                  const AppearanceTheme();
+              final isAndroidAppearance = appearance.isAndroid;
+              final isFloating =
+                  isAndroidAppearance &&
+                  appearance.floatingBottomBar &&
+                  isMobile;
+              final liquidGlass =
+                  isAndroidAppearance && isFloating && appearance.liquidGlass;
+              final isTranslucent =
+                  isAndroidAppearance && (appearance.blur || isFloating);
+              final navigationBarTheme = appearance.isMiuix
+                  ? _NavigationBarDefaultsMiuix(
+                      context,
+                      transparent: isTranslucent,
+                    )
+                  : _NavigationBarDefaultsM3(
+                      context,
+                      transparent: isTranslucent,
+                    );
               final bottomNavigationBar = NavigationBarTheme(
-                data: _NavigationBarDefaultsM3(context),
+                data: navigationBarTheme,
                 child: NavigationBar(
                   destinations: navigationItems
                       .map(
@@ -55,22 +77,95 @@ class HomePage extends ConsumerWidget {
                   selectedIndex: currentIndex,
                 ),
               );
-              return Column(
-                children: [
-                  Flexible(
-                    flex: 1,
-                    child: FocusTraversalGroup(
+              final navigationSurface = isTranslucent
+                  ? AndroidGlassSurface(
+                      blur: appearance.blur,
+                      liquidGlass: liquidGlass,
+                      borderRadius: isFloating
+                          ? AndroidAppearanceTokens.floatingBarBorderRadius
+                          : BorderRadius.zero,
+                      child: bottomNavigationBar,
+                    )
+                  : bottomNavigationBar;
+              final effectiveBottomNavigationBar = isFloating
+                  ? Padding(
+                      padding: AndroidAppearanceTokens.floatingBarMargin,
+                      child: Material(
+                        elevation: 8,
+                        color: Colors.transparent,
+                        shadowColor: context.colorScheme.shadow.withValues(
+                          alpha: 0.24,
+                        ),
+                        shape: const RoundedSuperellipseBorder(
+                          borderRadius:
+                              AndroidAppearanceTokens.floatingBarBorderRadius,
+                        ),
+                        child: navigationSurface,
+                      ),
+                    )
+                  : navigationSurface;
+              final page = child!;
+              final content = FocusTraversalGroup(
+                policy: PageTraversalPolicy(),
+                child: MediaQuery.removePadding(
+                  removeTop: false,
+                  removeBottom: isMobile,
+                  removeLeft: isMobile,
+                  removeRight: isMobile,
+                  context: context,
+                  child: page,
+                ),
+              );
+              if (isFloating) {
+                final mediaQuery = MediaQuery.of(context);
+                final navigationBarHeight = appearance.isMiuix
+                    ? AndroidAppearanceTokens.miuixNavigationBarHeight
+                    : AndroidAppearanceTokens.materialNavigationBarHeight;
+                final contentBottomPadding =
+                    mediaQuery.viewPadding.bottom +
+                    navigationBarHeight +
+                    AndroidAppearanceTokens.floatingBarMargin.vertical;
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    FocusTraversalGroup(
                       policy: PageTraversalPolicy(),
-                      child: MediaQuery.removePadding(
-                        removeTop: false,
-                        removeBottom: isMobile,
-                        removeLeft: isMobile,
-                        removeRight: isMobile,
-                        context: context,
-                        child: child!,
+                      child: MediaQuery(
+                        data: mediaQuery.copyWith(
+                          padding: mediaQuery.padding.copyWith(
+                            left: 0,
+                            right: 0,
+                            bottom: contentBottomPadding,
+                          ),
+                        ),
+                        child: page,
                       ),
                     ),
-                  ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: AnimatedVisibility.bottomNavigation(
+                        visible: true,
+                        child: SafeArea(
+                          top: false,
+                          child: MediaQuery.removePadding(
+                            removeTop: true,
+                            removeBottom: true,
+                            removeLeft: true,
+                            removeRight: true,
+                            context: context,
+                            child: effectiveBottomNavigationBar,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  Flexible(flex: 1, child: content),
                   AnimatedVisibility.bottomNavigation(
                     visible: isMobile,
                     child: MediaQuery.removePadding(
@@ -79,7 +174,7 @@ class HomePage extends ConsumerWidget {
                       removeLeft: true,
                       removeRight: true,
                       context: context,
-                      child: bottomNavigationBar,
+                      child: effectiveBottomNavigationBar,
                     ),
                   ),
                 ],
@@ -242,19 +337,24 @@ class _HomePageViewState extends ConsumerState<_HomePageView> {
 }
 
 class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
-  _NavigationBarDefaultsM3(this.context)
-    : super(
-        height: 80.0,
-        elevation: 3.0,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      );
+  _NavigationBarDefaultsM3(
+    this.context, {
+    this.transparent = false,
+    double height = AndroidAppearanceTokens.materialNavigationBarHeight,
+  }) : super(
+         height: height,
+         elevation: 3.0,
+         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+       );
 
   final BuildContext context;
+  final bool transparent;
   late final ColorScheme _colors = Theme.of(context).colorScheme;
   late final TextTheme _textTheme = Theme.of(context).textTheme;
 
   @override
-  Color? get backgroundColor => _colors.surfaceContainer;
+  Color? get backgroundColor =>
+      transparent ? Colors.transparent : _colors.surfaceContainer;
 
   @override
   Color? get shadowColor => Colors.transparent;
@@ -293,6 +393,47 @@ class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
             : states.contains(WidgetState.selected)
             ? _colors.onSurface
             : _colors.onSurfaceVariant,
+      );
+    });
+  }
+}
+
+class _NavigationBarDefaultsMiuix extends _NavigationBarDefaultsM3 {
+  _NavigationBarDefaultsMiuix(super.context, {required super.transparent})
+    : super(height: AndroidAppearanceTokens.miuixNavigationBarHeight);
+
+  @override
+  Color? get indicatorColor => _colors.primary.withValues(alpha: 0.14);
+
+  @override
+  ShapeBorder? get indicatorShape => const RoundedSuperellipseBorder(
+    borderRadius: BorderRadius.all(Radius.circular(18)),
+  );
+
+  @override
+  WidgetStateProperty<IconThemeData?>? get iconTheme {
+    return WidgetStateProperty.resolveWith((states) {
+      final selected = states.contains(WidgetState.selected);
+      return IconThemeData(
+        size: 26,
+        color: selected
+            ? _colors.onSurface
+            : _colors.onSurface.withValues(alpha: 0.4),
+      );
+    });
+  }
+
+  @override
+  WidgetStateProperty<TextStyle?>? get labelTextStyle {
+    return WidgetStateProperty.resolveWith((states) {
+      final selected = states.contains(WidgetState.selected);
+      return _textTheme.labelMedium?.copyWith(
+        fontSize: 12,
+        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        color: selected
+            ? _colors.onSurface
+            : _colors.onSurface.withValues(alpha: 0.4),
+        overflow: TextOverflow.ellipsis,
       );
     });
   }

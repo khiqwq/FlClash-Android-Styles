@@ -40,18 +40,94 @@ class ThemeView extends StatelessWidget {
     final appLocalizations = context.appLocalizations;
     return BaseScaffold(
       title: appLocalizations.theme,
-      body: const CustomScrollView(
+      body: CustomScrollView(
         slivers: [
-          _ThemeModeItem(),
-          SliverToBoxAdapter(child: SizedBox(height: 16)),
-          _PrimaryColorItem(),
-          SliverToBoxAdapter(child: SizedBox(height: 16)),
-          _PrueBlackItem(),
-          SliverToBoxAdapter(child: SizedBox(height: 16)),
-          _TextScaleFactorItem(),
-          SliverToBoxAdapter(child: SizedBox(height: 32)),
+          if (system.isAndroid) ...[
+            const SliverToBoxAdapter(child: AndroidAppearanceSettings()),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          ],
+          const _ThemeModeItem(),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const _PrimaryColorItem(),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const _PrueBlackItem(),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const _TextScaleFactorItem(),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
+    );
+  }
+}
+
+class AndroidAppearanceSettings extends ConsumerWidget {
+  const AndroidAppearanceSettings({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appearance = ref.watch(
+      themeSettingProvider.select(
+        (state) => VM3(state.blur, state.floatingBottomBar, state.liquidGlass),
+      ),
+    );
+    return Column(
+      children: [
+        ListItem.toggle(
+          key: const ValueKey('blur-toggle'),
+          leading: const Icon(Icons.blur_on),
+          title: Text(context.appLocalizations.blur),
+          subtitle: Text(context.appLocalizations.blurDesc),
+          value: appearance.a,
+          onChanged: (value) {
+            ref
+                .read(themeSettingProvider.notifier)
+                .update((state) => state.copyWith(blur: value));
+          },
+        ),
+        ListItem.toggle(
+          key: const ValueKey('floating-bottom-bar-toggle'),
+          leading: const Icon(Icons.vertical_align_bottom),
+          title: Text(context.appLocalizations.floatingBottomBar),
+          subtitle: Text(context.appLocalizations.floatingBottomBarDesc),
+          value: appearance.b,
+          onChanged: (value) {
+            ref
+                .read(themeSettingProvider.notifier)
+                .update((state) => state.copyWith(floatingBottomBar: value));
+          },
+        ),
+        DisabledMask(
+          status: !appearance.b,
+          child: ListItem.toggle(
+            key: const ValueKey('liquid-glass-toggle'),
+            leading: const Icon(Icons.water_drop_outlined),
+            title: Text(context.appLocalizations.liquidGlass),
+            subtitle: Text(context.appLocalizations.liquidGlassDesc),
+            value: appearance.c,
+            onChanged: appearance.b
+                ? (value) {
+                    ref
+                        .read(themeSettingProvider.notifier)
+                        .update((state) => state.copyWith(liquidGlass: value));
+                  }
+                : null,
+          ),
+        ),
+        ListItem.toggle(
+          key: const ValueKey('predictive-back-toggle'),
+          leading: const Icon(Icons.swipe_left_alt),
+          title: Text(context.appLocalizations.predictiveBack),
+          subtitle: Text(context.appLocalizations.predictiveBackDesc),
+          value: ref.watch(
+            themeSettingProvider.select((state) => state.predictiveBack),
+          ),
+          onChanged: (value) {
+            ref
+                .read(themeSettingProvider.notifier)
+                .update((state) => state.copyWith(predictiveBack: value));
+          },
+        ),
+      ],
     );
   }
 }
@@ -287,6 +363,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
 
     return SliverToBoxAdapter(
       child: CommonPopScope(
+        canPop: _removablePrimaryColor == null,
         onPop: (context) {
           if (_removablePrimaryColor != null) {
             setState(() {

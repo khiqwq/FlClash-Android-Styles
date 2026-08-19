@@ -212,6 +212,13 @@ abstract class ThemeProps with _$ThemeProps {
     @Default(DynamicSchemeVariant.content) DynamicSchemeVariant schemeVariant,
     @Default(false) bool pureBlack,
     @Default(TextScale()) TextScale textScale,
+    @JsonKey(unknownEnumValue: InterfaceStyle.material)
+    @Default(InterfaceStyle.material)
+    InterfaceStyle interfaceStyle,
+    @Default(false) bool blur,
+    @Default(false) bool floatingBottomBar,
+    @Default(false) bool liquidGlass,
+    @Default(true) bool predictiveBack,
   }) = _ThemeProps;
 
   factory ThemeProps.fromJson(Map<String, Object?> json) =>

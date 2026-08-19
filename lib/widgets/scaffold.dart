@@ -1,6 +1,8 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/widgets/effect.dart';
 import 'package:fl_clash/widgets/pop_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -90,10 +92,13 @@ class CommonScaffoldState extends State<CommonScaffold> {
   Widget _buildSearchingAppBarTheme(Widget child) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
+    final blur = theme.extension<AppearanceTheme>()?.blur == true;
     return Theme(
       data: theme.copyWith(
         appBarTheme: theme.appBarTheme.copyWith(
-          backgroundColor: colorScheme.brightness == Brightness.dark
+          backgroundColor: blur
+              ? Colors.transparent
+              : colorScheme.brightness == Brightness.dark
               ? Colors.grey[900]
               : Colors.white,
           iconTheme: theme.primaryIconTheme.copyWith(color: Colors.grey),
@@ -263,35 +268,63 @@ class CommonScaffoldState extends State<CommonScaffold> {
     return appBar;
   }
 
+  Widget _buildAppearanceAppBar(Widget child) {
+    final appearance = Theme.of(context).extension<AppearanceTheme>();
+    if (appearance?.isAndroid != true || appearance?.blur != true) {
+      return child;
+    }
+    final theme = Theme.of(context);
+    return AndroidGlassSurface(
+      blur: true,
+      liquidGlass: false,
+      child: Theme(
+        data: theme.copyWith(
+          appBarTheme: theme.appBarTheme.copyWith(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            foregroundColor: theme.colorScheme.onSurface,
+            shadowColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+
   PreferredSizeWidget _buildAppBar(VoidCallback? backAction) {
+    final appearance = Theme.of(context).extension<AppearanceTheme>();
+    final appBarHeight = appearance?.isMiuix == true
+        ? AndroidAppearanceTokens.miuixAppBarHeight
+        : kToolbarHeight;
+    final appBar =
+        widget.appBar ??
+        ValueListenableBuilder<AppBarState>(
+          valueListenable: _appBarState,
+          builder: (_, state, _) {
+            return _buildAppBarWrap(
+              AppBar(
+                automaticallyImplyLeading: backAction != null ? false : true,
+                animateColor: true,
+                centerTitle: widget.centerTitle ?? false,
+                leading: _buildLeading(backAction),
+                title: _buildTitle(state.searchState),
+                actions: _buildActions(
+                  state.searchState != null,
+                  state.actions.isNotEmpty
+                      ? state.actions
+                      : widget.actions ?? [],
+                ),
+              ),
+            );
+          },
+        );
     return PreferredSize(
-      preferredSize: const Size.fromHeight(kToolbarHeight),
+      preferredSize: Size.fromHeight(appBarHeight),
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          widget.appBar ??
-              ValueListenableBuilder<AppBarState>(
-                valueListenable: _appBarState,
-                builder: (_, state, _) {
-                  return _buildAppBarWrap(
-                    AppBar(
-                      automaticallyImplyLeading: backAction != null
-                          ? false
-                          : true,
-                      animateColor: true,
-                      centerTitle: widget.centerTitle ?? false,
-                      leading: _buildLeading(backAction),
-                      title: _buildTitle(state.searchState),
-                      actions: _buildActions(
-                        state.searchState != null,
-                        state.actions.isNotEmpty
-                            ? state.actions
-                            : widget.actions ?? [],
-                      ),
-                    ),
-                  );
-                },
-              ),
+          _buildAppearanceAppBar(appBar),
           ValueListenableBuilder(
             valueListenable: _loadingNotifier,
             builder: (_, value, _) {
@@ -310,56 +343,71 @@ class CommonScaffoldState extends State<CommonScaffold> {
     assert(widget.appBar != null || widget.title != null);
     final backActionProvider = CommonScaffoldBackActionProvider.of(context);
     final isTV = widget.isTV ?? system.isTV;
-    final body = SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isTV && widget.floatingActionButton != null)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: CommonScaffoldFabExtendedProvider(
-                isExtended: true,
-                child: widget.floatingActionButton!,
+    final appearance = Theme.of(context).extension<AppearanceTheme>();
+    final blur = appearance?.isAndroid == true && appearance?.blur == true;
+    final appBarHeight = appearance?.isMiuix == true
+        ? AndroidAppearanceTokens.miuixAppBarHeight
+        : kToolbarHeight;
+    final body = MediaQuery(
+      data: blur
+          ? MediaQuery.of(context).copyWith(
+              padding: MediaQuery.of(context).padding.copyWith(
+                top: MediaQuery.of(context).padding.top + appBarHeight,
               ),
+            )
+          : MediaQuery.of(context),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isTV && widget.floatingActionButton != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: CommonScaffoldFabExtendedProvider(
+                  isExtended: true,
+                  child: widget.floatingActionButton!,
+                ),
+              ),
+            ValueListenableBuilder(
+              valueListenable: _keywordsNotifier,
+              builder: (_, keywords, _) {
+                if (widget.onKeywordsUpdate != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    widget.onKeywordsUpdate!(keywords);
+                  });
+                }
+                if (keywords.isEmpty) {
+                  return const SizedBox();
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  child: Wrap(
+                    runSpacing: 8,
+                    spacing: 8,
+                    children: [
+                      for (final keyword in keywords)
+                        CommonChip(
+                          label: keyword,
+                          type: ChipType.delete,
+                          onPressed: () {
+                            _deleteKeyword(keyword);
+                          },
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
-          ValueListenableBuilder(
-            valueListenable: _keywordsNotifier,
-            builder: (_, keywords, _) {
-              if (widget.onKeywordsUpdate != null) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  widget.onKeywordsUpdate!(keywords);
-                });
-              }
-              if (keywords.isEmpty) {
-                return const SizedBox();
-              }
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                child: Wrap(
-                  runSpacing: 8,
-                  spacing: 8,
-                  children: [
-                    for (final keyword in keywords)
-                      CommonChip(
-                        label: keyword,
-                        type: ChipType.delete,
-                        onPressed: () {
-                          _deleteKeyword(keyword);
-                        },
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
-          Expanded(child: widget.body),
-        ],
+            Expanded(child: widget.body),
+          ],
+        ),
       ),
     );
     return Scaffold(
+      extendBodyBehindAppBar: blur,
       appBar: _buildAppBar(backActionProvider?.backAction),
       body: NotificationListener<UserScrollNotification>(
         child: body,

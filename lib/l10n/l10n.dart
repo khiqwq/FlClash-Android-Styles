@@ -239,16 +239,121 @@ class AppLocalizations {
     );
   }
 
-  /// `Theme`
+  /// `Theme settings`
   String get theme {
-    return Intl.message('Theme', name: 'theme', desc: '', args: []);
+    return Intl.message('Theme settings', name: 'theme', desc: '', args: []);
   }
 
-  /// `Set dark mode,adjust the color`
+  /// `Customize the interface, theme mode, and colors`
   String get themeDesc {
     return Intl.message(
-      'Set dark mode,adjust the color',
+      'Customize the interface, theme mode, and colors',
       name: 'themeDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Interface style`
+  String get interfaceStyle {
+    return Intl.message(
+      'Interface style',
+      name: 'interfaceStyle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Material`
+  String get materialStyle {
+    return Intl.message('Material', name: 'materialStyle', desc: '', args: []);
+  }
+
+  /// `Miuix-inspired`
+  String get miuixStyle {
+    return Intl.message(
+      'Miuix-inspired',
+      name: 'miuixStyle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Blur top and bottom bars`
+  String get blur {
+    return Intl.message(
+      'Blur top and bottom bars',
+      name: 'blur',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Blur the top and bottom bars with a translucent backdrop`
+  String get blurDesc {
+    return Intl.message(
+      'Blur the top and bottom bars with a translucent backdrop',
+      name: 'blurDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Floating bottom bar`
+  String get floatingBottomBar {
+    return Intl.message(
+      'Floating bottom bar',
+      name: 'floatingBottomBar',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Float the bottom bar above content with continuous rounded corners`
+  String get floatingBottomBarDesc {
+    return Intl.message(
+      'Float the bottom bar above content with continuous rounded corners',
+      name: 'floatingBottomBarDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Liquid glass`
+  String get liquidGlass {
+    return Intl.message(
+      'Liquid glass',
+      name: 'liquidGlass',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add clipped blur, translucent tint, and highlights to the floating bottom bar`
+  String get liquidGlassDesc {
+    return Intl.message(
+      'Add clipped blur, translucent tint, and highlights to the floating bottom bar',
+      name: 'liquidGlassDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Predictive back animation`
+  String get predictiveBack {
+    return Intl.message(
+      'Predictive back animation',
+      name: 'predictiveBack',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Preview the previous screen during supported Android back gestures`
+  String get predictiveBackDesc {
+    return Intl.message(
+      'Preview the previous screen during supported Android back gestures',
+      name: 'predictiveBackDesc',
       desc: '',
       args: [],
     );

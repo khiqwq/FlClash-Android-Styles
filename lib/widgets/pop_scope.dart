@@ -8,20 +8,23 @@ class CommonPopScope extends StatelessWidget {
   final Widget child;
   final FutureOr<bool> Function(BuildContext context)? onPop;
   final FutureOr<void> Function()? onPopSuccess;
+  final bool? canPop;
 
   const CommonPopScope({
     super.key,
     required this.child,
     this.onPop,
     this.onPopSuccess,
+    this.canPop,
   });
 
   @override
   Widget build(BuildContext context) {
     final route = ModalRoute.of(context);
     final hasBackLayer = route?.willHandlePopInternally == true;
+    final canPop = this.canPop ?? onPop == null;
     return PopScope(
-      canPop: onPop == null || hasBackLayer,
+      canPop: canPop || hasBackLayer,
       onPopInvokedWithResult: onPop == null
           ? null
           : (didPop, _) async {

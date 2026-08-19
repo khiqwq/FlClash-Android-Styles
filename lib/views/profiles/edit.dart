@@ -328,6 +328,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       policy: PageTraversalPolicy(),
       child: PageFocusScope(
         child: CommonPopScope(
+          canPop: _fileData == null,
           onPop: (context) {
             if (_fileData == null) {
               return true;

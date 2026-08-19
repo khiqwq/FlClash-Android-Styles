@@ -47,6 +47,48 @@ class EditorPage extends ConsumerStatefulWidget {
   ConsumerState<EditorPage> createState() => _EditorPageState();
 }
 
+class _EditorPopScope extends StatelessWidget {
+  final EditorPage editor;
+  final CodeLineEditingController controller;
+  final TextEditingController titleController;
+  final Widget child;
+
+  const _EditorPopScope({
+    required this.editor,
+    required this.controller,
+    required this.titleController,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([controller, titleController]),
+      builder: (context, _) {
+        final canPop =
+            editor.onPop == null ||
+            titleController.text == editor.title &&
+                controller.text == editor.content;
+        return CommonPopScope(
+          canPop: canPop,
+          onPop: (context) async {
+            if (editor.onPop == null) {
+              return true;
+            }
+            final res = await editor.onPop!(
+              context,
+              titleController.text,
+              controller.text,
+            );
+            return res && context.mounted;
+          },
+          child: child,
+        );
+      },
+    );
+  }
+}
+
 class _EditorPageState extends ConsumerState<EditorPage> {
   late CodeLineEditingController _controller;
   late CodeFindController _findController;
@@ -173,21 +215,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     final isMobileView = ref.watch(isMobileViewProvider);
-    return CommonPopScope(
-      onPop: (context) async {
-        if (widget.onPop == null) {
-          return true;
-        }
-        final res = await widget.onPop!(
-          context,
-          _titleController.text,
-          _controller.text,
-        );
-        if (res && context.mounted) {
-          return true;
-        }
-        return false;
-      },
+    return _EditorPopScope(
+      editor: widget,
+      controller: _controller,
+      titleController: _titleController,
       child: CommonScaffold(
         appBar: AppBar(
           title: TextField(

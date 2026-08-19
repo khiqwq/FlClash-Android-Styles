@@ -85,6 +85,11 @@ void main() {
     test('default value is dark mode', () {
       final value = container.read(themeSettingProvider);
       expect(value.primaryColor, null);
+      expect(value.interfaceStyle, InterfaceStyle.material);
+      expect(value.blur, false);
+      expect(value.floatingBottomBar, false);
+      expect(value.liquidGlass, false);
+      expect(value.predictiveBack, true);
     });
 
     test('can update state', () {

@@ -193,6 +193,22 @@ class CommonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filledShape = theme.filledButtonTheme.style?.shape?.resolve(
+      const <WidgetState>{},
+    );
+    final outlinedShape = theme.outlinedButtonTheme.style?.shape?.resolve(
+      const <WidgetState>{},
+    );
+    OutlinedBorder defaultShape(OutlinedBorder? themedShape) {
+      if (radius == null && themedShape != null) {
+        return themedShape;
+      }
+      return RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(radius ?? 14),
+      );
+    }
+
     var childWidget = child;
 
     if (info != null) {
@@ -222,11 +238,7 @@ class CommonCard extends StatelessWidget {
         style:
             FilledButton.styleFrom(
               padding: padding ?? EdgeInsets.zero,
-              shape:
-                  shape ??
-                  RoundedSuperellipseBorder(
-                    borderRadius: BorderRadius.circular(radius ?? 14),
-                  ),
+              shape: shape ?? defaultShape(filledShape),
               iconSize: 20,
               iconColor: _buildIconColor(context),
               foregroundColor: _buildForegroundColor(context),
@@ -249,11 +261,7 @@ class CommonCard extends StatelessWidget {
         style:
             OutlinedButton.styleFrom(
               padding: padding ?? EdgeInsets.zero,
-              shape:
-                  shape ??
-                  RoundedSuperellipseBorder(
-                    borderRadius: BorderRadius.circular(radius ?? 14),
-                  ),
+              shape: shape ?? defaultShape(outlinedShape),
               iconSize: 20,
               iconColor: _buildIconColor(context),
               backgroundColor: _buildBackgroundColor(context),

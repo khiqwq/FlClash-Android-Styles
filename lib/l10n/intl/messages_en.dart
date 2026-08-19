@@ -206,6 +206,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "bind": MessageLookupByLibrary.simpleMessage("Bind"),
     "blacklistMode": MessageLookupByLibrary.simpleMessage("Blacklist mode"),
+    "blur": MessageLookupByLibrary.simpleMessage("Blur top and bottom bars"),
+    "blurDesc": MessageLookupByLibrary.simpleMessage(
+      "Blur the top and bottom bars with a translucent backdrop",
+    ),
     "bypassDomain": MessageLookupByLibrary.simpleMessage("Bypass domain"),
     "bypassDomainDesc": MessageLookupByLibrary.simpleMessage(
       "Only takes effect when the system proxy is enabled",
@@ -405,6 +409,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "findProcessModeDesc": MessageLookupByLibrary.simpleMessage(
       "There is a certain performance loss after opening",
     ),
+    "floatingBottomBar": MessageLookupByLibrary.simpleMessage(
+      "Floating bottom bar",
+    ),
+    "floatingBottomBarDesc": MessageLookupByLibrary.simpleMessage(
+      "Float the bottom bar above content with continuous rounded corners",
+    ),
     "fontFamily": MessageLookupByLibrary.simpleMessage("FontFamily"),
     "forceRestartCoreTip": MessageLookupByLibrary.simpleMessage(
       "Are you sure you want to force restart the core?",
@@ -492,6 +502,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "intelligentSelected": MessageLookupByLibrary.simpleMessage(
       "Intelligent selection",
     ),
+    "interfaceStyle": MessageLookupByLibrary.simpleMessage("Interface style"),
     "internet": MessageLookupByLibrary.simpleMessage("Internet"),
     "interval": MessageLookupByLibrary.simpleMessage("Interval"),
     "intranetIP": MessageLookupByLibrary.simpleMessage("Intranet IP"),
@@ -518,6 +529,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "language": MessageLookupByLibrary.simpleMessage("Language"),
     "layout": MessageLookupByLibrary.simpleMessage("Layout"),
     "light": MessageLookupByLibrary.simpleMessage("Light"),
+    "liquidGlass": MessageLookupByLibrary.simpleMessage("Liquid glass"),
+    "liquidGlassDesc": MessageLookupByLibrary.simpleMessage(
+      "Add clipped blur, translucent tint, and highlights to the floating bottom bar",
+    ),
     "list": MessageLookupByLibrary.simpleMessage("List"),
     "listen": MessageLookupByLibrary.simpleMessage("Listen"),
     "loadTest": MessageLookupByLibrary.simpleMessage("Load test"),
@@ -554,6 +569,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "loose": MessageLookupByLibrary.simpleMessage("Loose"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("Match source IP"),
+    "materialStyle": MessageLookupByLibrary.simpleMessage("Material"),
     "maxFailedTimes": MessageLookupByLibrary.simpleMessage("Max failed times"),
     "memoryInfo": MessageLookupByLibrary.simpleMessage("Memory info"),
     "messageTest": MessageLookupByLibrary.simpleMessage("Message test"),
@@ -566,6 +582,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Modify the default system exit event",
     ),
     "minutesAgo": m17,
+    "miuixStyle": MessageLookupByLibrary.simpleMessage("Miuix-inspired"),
     "mixedPort": MessageLookupByLibrary.simpleMessage("Mixed Port"),
     "mode": MessageLookupByLibrary.simpleMessage("Mode"),
     "monochromeScheme": MessageLookupByLibrary.simpleMessage("Monochrome"),
@@ -666,6 +683,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Please enter a different port",
     ),
     "portTip": m21,
+    "predictiveBack": MessageLookupByLibrary.simpleMessage(
+      "Predictive back animation",
+    ),
+    "predictiveBackDesc": MessageLookupByLibrary.simpleMessage(
+      "Preview the previous screen during supported Android back gestures",
+    ),
     "preferH3Desc": MessageLookupByLibrary.simpleMessage(
       "Prioritize the use of DOH\'s http/3",
     ),
@@ -1001,10 +1024,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "testUrl": MessageLookupByLibrary.simpleMessage("Test url"),
     "testWhenUsed": MessageLookupByLibrary.simpleMessage("Test when used"),
     "textScale": MessageLookupByLibrary.simpleMessage("Text Scaling"),
-    "theme": MessageLookupByLibrary.simpleMessage("Theme"),
+    "theme": MessageLookupByLibrary.simpleMessage("Theme settings"),
     "themeColor": MessageLookupByLibrary.simpleMessage("Theme color"),
     "themeDesc": MessageLookupByLibrary.simpleMessage(
-      "Set dark mode,adjust the color",
+      "Customize the interface, theme mode, and colors",
     ),
     "themeMode": MessageLookupByLibrary.simpleMessage("Theme mode"),
     "tight": MessageLookupByLibrary.simpleMessage("Tight"),

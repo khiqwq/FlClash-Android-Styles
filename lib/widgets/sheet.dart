@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/models/common.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/state.dart';
@@ -170,6 +171,11 @@ class _AdaptiveSheetScaffoldState extends State<AdaptiveSheetScaffold> {
     final backgroundColor = type == SheetType.bottomSheet
         ? context.colorScheme.surfaceContainerLow
         : context.colorScheme.surface;
+    final appearance = Theme.of(context).extension<AppearanceTheme>();
+    final blurAppBar =
+        type == SheetType.page &&
+        appearance?.isAndroid == true &&
+        appearance?.blur == true;
     final useCloseIcon =
         type != SheetType.page &&
         (nestedNavigatorPop != null && route?.impliesAppBarDismissal == false ||
@@ -219,8 +225,8 @@ class _AdaptiveSheetScaffoldState extends State<AdaptiveSheetScaffold> {
 
     final suffixPop = type != SheetType.page && actions.isEmpty && useCloseIcon;
     final appBar = AppBar(
-      backgroundColor: backgroundColor,
-      forceMaterialTransparency: type == SheetType.bottomSheet ? true : false,
+      backgroundColor: blurAppBar ? Colors.transparent : backgroundColor,
+      forceMaterialTransparency: type == SheetType.bottomSheet || blurAppBar,
       leading: suffixPop ? null : popButton,
       automaticallyImplyLeading: type == SheetType.page ? true : false,
       centerTitle: true,

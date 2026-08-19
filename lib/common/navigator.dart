@@ -1,5 +1,4 @@
 import 'package:animations/animations.dart';
-import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +20,19 @@ const commonSharedXPageTransitions = SharedAxisPageTransitionsBuilder(
   transitionType: SharedAxisTransitionType.horizontal,
   fillColor: Colors.transparent,
 );
+
+PageTransitionsTheme buildPageTransitionsTheme({required bool predictiveBack}) {
+  return PageTransitionsTheme(
+    builders: <TargetPlatform, PageTransitionsBuilder>{
+      TargetPlatform.android: predictiveBack
+          ? const PredictiveBackPageTransitionsBuilder()
+          : commonSharedXPageTransitions,
+      TargetPlatform.windows: commonSharedXPageTransitions,
+      TargetPlatform.linux: commonSharedXPageTransitions,
+      TargetPlatform.macOS: commonSharedXPageTransitions,
+    },
+  );
+}
 
 class CommonDesktopRoute<T> extends PageRoute<T> {
   final Widget Function(BuildContext context) builder;
@@ -57,45 +69,8 @@ class CommonDesktopRoute<T> extends PageRoute<T> {
   Duration get reverseTransitionDuration => const Duration(milliseconds: 200);
 }
 
-class CommonRoute<T> extends PageRoute<T> {
-  final Widget Function(BuildContext context) builder;
-
-  CommonRoute({required this.builder});
-
-  @override
-  Color? get barrierColor => null;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  bool get maintainState => true;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    final Widget result = builder(context);
-    return Semantics(
-      scopesRoute: true,
-      explicitChildNodes: true,
-      child: SharedAxisTransition(
-        animation: animation,
-        secondaryAnimation: secondaryAnimation,
-        transitionType: SharedAxisTransitionType.horizontal,
-        fillColor: context.colorScheme.surface,
-        child: result,
-      ),
-    );
-  }
-
-  @override
-  Duration get transitionDuration => const Duration(milliseconds: 300);
-
-  @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 300);
+class CommonRoute<T> extends MaterialPageRoute<T> {
+  CommonRoute({required super.builder});
 }
 
 final Animatable<Offset> _kRightMiddleTween = Tween<Offset>(

@@ -209,6 +209,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "blacklistMode": MessageLookupByLibrary.simpleMessage(
       "Режим черного списка",
     ),
+    "blur": MessageLookupByLibrary.simpleMessage(
+      "Размытие верхней и нижней панелей",
+    ),
+    "blurDesc": MessageLookupByLibrary.simpleMessage(
+      "Размывать верхнюю и нижнюю панели с полупрозрачным фоном",
+    ),
     "bypassDomain": MessageLookupByLibrary.simpleMessage("Обход домена"),
     "bypassDomainDesc": MessageLookupByLibrary.simpleMessage(
       "Действует только при включенном системном прокси",
@@ -420,6 +426,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "findProcessModeDesc": MessageLookupByLibrary.simpleMessage(
       "При включении возможны небольшие потери производительности",
     ),
+    "floatingBottomBar": MessageLookupByLibrary.simpleMessage(
+      "Плавающая нижняя панель",
+    ),
+    "floatingBottomBarDesc": MessageLookupByLibrary.simpleMessage(
+      "Размещать нижнюю панель над содержимым с плавно скруглёнными углами",
+    ),
     "fontFamily": MessageLookupByLibrary.simpleMessage("Семейство шрифтов"),
     "forceRestartCoreTip": MessageLookupByLibrary.simpleMessage(
       "Вы уверены, что хотите принудительно перезапустить ядро?",
@@ -511,6 +523,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "intelligentSelected": MessageLookupByLibrary.simpleMessage(
       "Интеллектуальный выбор",
     ),
+    "interfaceStyle": MessageLookupByLibrary.simpleMessage("Стиль интерфейса"),
     "internet": MessageLookupByLibrary.simpleMessage("Интернет"),
     "interval": MessageLookupByLibrary.simpleMessage("Интервал"),
     "intranetIP": MessageLookupByLibrary.simpleMessage("Внутренний IP"),
@@ -537,6 +550,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "language": MessageLookupByLibrary.simpleMessage("Язык"),
     "layout": MessageLookupByLibrary.simpleMessage("Макет"),
     "light": MessageLookupByLibrary.simpleMessage("Светлый"),
+    "liquidGlass": MessageLookupByLibrary.simpleMessage("Жидкое стекло"),
+    "liquidGlassDesc": MessageLookupByLibrary.simpleMessage(
+      "Добавить обрезанное размытие, полупрозрачный оттенок и блики на плавающую нижнюю панель",
+    ),
     "list": MessageLookupByLibrary.simpleMessage("Список"),
     "listen": MessageLookupByLibrary.simpleMessage("Слушать"),
     "loadTest": MessageLookupByLibrary.simpleMessage("Тест загрузки"),
@@ -577,6 +594,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "matchSourceIp": MessageLookupByLibrary.simpleMessage(
       "Сопоставить исходный IP",
     ),
+    "materialStyle": MessageLookupByLibrary.simpleMessage("Material"),
     "maxFailedTimes": MessageLookupByLibrary.simpleMessage(
       "Макс. количество неудач",
     ),
@@ -593,6 +611,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Изменить стандартное событие выхода из системы",
     ),
     "minutesAgo": m17,
+    "miuixStyle": MessageLookupByLibrary.simpleMessage("В стиле Miuix"),
     "mixedPort": MessageLookupByLibrary.simpleMessage("Смешанный порт"),
     "mode": MessageLookupByLibrary.simpleMessage("Режим"),
     "monochromeScheme": MessageLookupByLibrary.simpleMessage("Монохром"),
@@ -701,6 +720,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Введите другой порт",
     ),
     "portTip": m21,
+    "predictiveBack": MessageLookupByLibrary.simpleMessage(
+      "Предиктивная анимация возврата",
+    ),
+    "predictiveBackDesc": MessageLookupByLibrary.simpleMessage(
+      "Показывать предыдущий экран при поддерживаемом жесте возврата Android",
+    ),
     "preferH3Desc": MessageLookupByLibrary.simpleMessage(
       "Приоритетное использование HTTP/3 для DOH",
     ),
@@ -1058,10 +1083,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Тестировать при использовании",
     ),
     "textScale": MessageLookupByLibrary.simpleMessage("Масштабирование текста"),
-    "theme": MessageLookupByLibrary.simpleMessage("Тема"),
+    "theme": MessageLookupByLibrary.simpleMessage("Настройки темы"),
     "themeColor": MessageLookupByLibrary.simpleMessage("Цвет темы"),
     "themeDesc": MessageLookupByLibrary.simpleMessage(
-      "Установить темный режим, настроить цвет",
+      "Настроить интерфейс, режим темы и цвета",
     ),
     "themeMode": MessageLookupByLibrary.simpleMessage("Режим темы"),
     "tight": MessageLookupByLibrary.simpleMessage("Плотный"),
