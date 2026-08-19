@@ -185,8 +185,17 @@ class HomePage extends ConsumerWidget {
                   isAndroidAppearance && isFloating && appearance.liquidGlass;
               final isTranslucent =
                   isAndroidAppearance && (appearance.blur || isFloating);
+              final useLiquidNavigation = liquidGlass;
               final useMiuixNavigation = appearance.isMiuix;
-              final bottomNavigationBar = useMiuixNavigation
+              final bottomNavigationBar = useLiquidNavigation
+                  ? LiquidToggleNavigationBar(
+                      items: navigationItems,
+                      selectedIndex: currentIndex,
+                      onSelected: (index) {
+                        _handleToPage(navigationItems[index].label);
+                      },
+                    )
+                  : useMiuixNavigation
                   ? MiuixBottomNavigationBar(
                       items: navigationItems,
                       selectedIndex: currentIndex,
@@ -216,16 +225,18 @@ class HomePage extends ConsumerWidget {
                       ),
                     );
               final coloredBottomNavigationBar =
-                  appearance.isMiuix && !isTranslucent
+                  appearance.isMiuix && !isTranslucent && !useLiquidNavigation
                   ? ColoredBox(
                       color: context.colorScheme.surfaceContainer,
                       child: bottomNavigationBar,
                     )
                   : bottomNavigationBar;
-              final navigationSurface = isTranslucent
+              final navigationSurface = useLiquidNavigation
+                  ? coloredBottomNavigationBar
+                  : isTranslucent
                   ? AndroidGlassSurface(
                       blur: appearance.blur,
-                      liquidGlass: liquidGlass,
+                      liquidGlass: false,
                       borderRadius: isFloating
                           ? AndroidAppearanceTokens.floatingBarBorderRadius
                           : BorderRadius.zero,
@@ -245,7 +256,7 @@ class HomePage extends ConsumerWidget {
                         child: Padding(
                           padding: AndroidAppearanceTokens.floatingBarMargin,
                           child: Material(
-                            elevation: 5,
+                            elevation: useLiquidNavigation ? 0 : 5,
                             color: Colors.transparent,
                             shadowColor: context.colorScheme.shadow.withValues(
                               alpha: 0.22,
@@ -274,7 +285,8 @@ class HomePage extends ConsumerWidget {
               );
               if (isFloating) {
                 final mediaQuery = MediaQuery.of(context);
-                final navigationBarHeight = appearance.isMiuix
+                final navigationBarHeight =
+                    appearance.isMiuix || useLiquidNavigation
                     ? AndroidAppearanceTokens.miuixNavigationBarHeight
                     : AndroidAppearanceTokens.materialNavigationBarHeight;
                 final contentBottomPadding =
@@ -559,11 +571,20 @@ class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
 
 class HomeBackScopeContainer extends ConsumerWidget {
   final Widget child;
+  @visibleForTesting
+  final bool? isAndroid;
 
-  const HomeBackScopeContainer({super.key, required this.child});
+  const HomeBackScopeContainer({
+    super.key,
+    required this.child,
+    @visibleForTesting this.isAndroid,
+  });
 
   @override
   Widget build(BuildContext context, ref) {
+    if (isAndroid ?? system.isAndroid) {
+      return child;
+    }
     return CommonPopScope(
       onPop: (context) async {
         final pageLabel = ref.read(currentPageLabelProvider);

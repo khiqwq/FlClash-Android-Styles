@@ -152,7 +152,11 @@ String? _getStoredDavPassword(Map<String, Object?>? configMap) {
 
 bool _needsInterfaceStyleMigration(Map<String, Object?>? configMap) {
   final themeProps = configMap?['themeProps'];
-  return themeProps is Map && !themeProps.containsKey('interfaceStyleVersion');
+  if (themeProps is! Map) {
+    return false;
+  }
+  final version = themeProps['interfaceStyleVersion'];
+  return version is! num || version.toInt() < 2;
 }
 
 final migration = Migration(store: const _AppMigrationStore());

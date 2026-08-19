@@ -220,26 +220,38 @@ class CommonScaffoldState extends State<CommonScaffold> {
 
   Widget _buildTitle(AppBarSearchState? startState) {
     final appLocalizations = context.appLocalizations;
-    return _isSearch
-        ? TextField(
-            autofocus: true,
-            controller: _textController,
-            inputFormatters: TextInputLimits.limit(TextInputLimits.search),
-            style: context.textTheme.titleLarge,
-            onChanged: (value) {
-              if (startState != null) {
-                startState.onSearch(value);
-              }
-            },
-            decoration: InputDecoration(hintText: appLocalizations.search),
+    if (_isSearch) {
+      return TextField(
+        autofocus: true,
+        controller: _textController,
+        inputFormatters: TextInputLimits.limit(TextInputLimits.search),
+        style: context.textTheme.titleLarge,
+        onChanged: (value) {
+          if (startState != null) {
+            startState.onSearch(value);
+          }
+        },
+        decoration: InputDecoration(hintText: appLocalizations.search),
+      );
+    }
+    final title = Text(
+      !_isEdit
+          ? widget.title!
+          : appLocalizations.selectedCountTitle(
+              '${_appBarState.value.editState?.editCount ?? 0}',
+            ),
+    );
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
+    return isMiuix && !_isEdit
+        ? Align(
+            alignment: AlignmentDirectional.bottomStart,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: title,
+            ),
           )
-        : Text(
-            !_isEdit
-                ? widget.title!
-                : appLocalizations.selectedCountTitle(
-                    '${_appBarState.value.editState?.editCount ?? 0}',
-                  ),
-          );
+        : title;
   }
 
   List<Widget> _buildActions(bool hasSearch, List<Widget> actions) {
@@ -307,6 +319,8 @@ class CommonScaffoldState extends State<CommonScaffold> {
                 automaticallyImplyLeading: backAction != null ? false : true,
                 animateColor: true,
                 centerTitle: widget.centerTitle ?? false,
+                toolbarHeight: appBarHeight,
+                titleSpacing: appearance?.isMiuix == true ? 26 : null,
                 leading: _buildLeading(backAction),
                 title: _buildTitle(state.searchState),
                 actions: _buildActions(

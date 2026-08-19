@@ -303,13 +303,13 @@ void main() {
       expect(props.themeMode, ThemeMode.dark);
       expect(props.pureBlack, false);
       expect(props.textScale.scale, 1.0);
-      expect(props.interfaceStyle, InterfaceStyle.miuix);
-      expect(props.interfaceStyleVersion, 1);
+      expect(props.interfaceStyle, InterfaceStyle.material);
+      expect(props.interfaceStyleVersion, 2);
       expect(props.blur, false);
       expect(props.floatingBottomBar, false);
       expect(props.liquidGlass, false);
       expect(props.predictiveBack, true);
-      expect(props.toJson()['interfaceStyle'], 'miuix');
+      expect(props.toJson()['interfaceStyle'], 'material');
     });
 
     test('safeFromJson returns default on null', () {
@@ -320,22 +320,37 @@ void main() {
     test('legacy JSON receives Android appearance defaults', () {
       final result = ThemeProps.fromJson({});
 
-      expect(result.interfaceStyle, InterfaceStyle.miuix);
+      expect(result.interfaceStyle, InterfaceStyle.material);
       expect(result.blur, false);
       expect(result.floatingBottomBar, false);
       expect(result.liquidGlass, false);
       expect(result.predictiveBack, true);
     });
 
-    test('safeFromJson upgrades the first Android appearance format', () {
+    test(
+      'safeFromJson restores Material after the first appearance format',
+      () {
+        final result = ThemeProps.safeFromJson({
+          'interfaceStyle': 'miuix',
+          'interfaceStyleVersion': 1,
+          'themeMode': 'dark',
+        });
+
+        expect(result.interfaceStyle, InterfaceStyle.material);
+        expect(result.interfaceStyleVersion, 2);
+        expect(result.themeMode, ThemeMode.dark);
+      },
+    );
+
+    test('safeFromJson restores Material when the marker is missing', () {
       final result = ThemeProps.safeFromJson({
-        'interfaceStyle': 'material',
-        'themeMode': 'dark',
+        'interfaceStyle': 'miuix',
+        'themeMode': 'light',
       });
 
-      expect(result.interfaceStyle, InterfaceStyle.miuix);
-      expect(result.interfaceStyleVersion, 1);
-      expect(result.themeMode, ThemeMode.dark);
+      expect(result.interfaceStyle, InterfaceStyle.material);
+      expect(result.interfaceStyleVersion, 2);
+      expect(result.themeMode, ThemeMode.light);
     });
 
     test('unknown interface style preserves other theme preferences', () {

@@ -282,8 +282,8 @@ _ThemeProps _$ThemePropsFromJson(Map<String, dynamic> json) => _ThemeProps(
         json['interfaceStyle'],
         unknownValue: InterfaceStyle.material,
       ) ??
-      InterfaceStyle.miuix,
-  interfaceStyleVersion: (json['interfaceStyleVersion'] as num?)?.toInt() ?? 1,
+      InterfaceStyle.material,
+  interfaceStyleVersion: (json['interfaceStyleVersion'] as num?)?.toInt() ?? 2,
   blur: json['blur'] as bool? ?? false,
   floatingBottomBar: json['floatingBottomBar'] as bool? ?? false,
   liquidGlass: json['liquidGlass'] as bool? ?? false,

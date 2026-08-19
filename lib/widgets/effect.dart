@@ -8,14 +8,20 @@ import 'package:flutter/material.dart';
 class AndroidGlassSurface extends StatefulWidget {
   final bool blur;
   final bool liquidGlass;
+  final double liquidProgress;
+  final Color? surfaceColor;
   final BorderRadius borderRadius;
+  final OutlinedBorder? shape;
   final Widget child;
 
   const AndroidGlassSurface({
     super.key,
     required this.blur,
     required this.liquidGlass,
+    this.liquidProgress = 1,
+    this.surfaceColor,
     this.borderRadius = BorderRadius.zero,
+    this.shape,
     required this.child,
   });
 
@@ -81,27 +87,39 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
   }
 
   ui.ImageFilter _buildFilter() {
+    final liquidProgress = widget.liquidProgress.clamp(0.0, 1.0);
+    final blurSigma = widget.liquidGlass
+        ? max(
+            0.001,
+            AndroidAppearanceTokens.liquidGlassBlurSigma * (1 - liquidProgress),
+          )
+        : AndroidAppearanceTokens.barBlurSigma;
     final blur = ui.ImageFilter.blur(
-      sigmaX: widget.liquidGlass
-          ? AndroidAppearanceTokens.liquidGlassBlurSigma
-          : AndroidAppearanceTokens.barBlurSigma,
-      sigmaY: widget.liquidGlass
-          ? AndroidAppearanceTokens.liquidGlassBlurSigma
-          : AndroidAppearanceTokens.barBlurSigma,
+      sigmaX: blurSigma,
+      sigmaY: blurSigma,
       tileMode: TileMode.clamp,
     );
     if (!widget.liquidGlass ||
+        liquidProgress <= 0 ||
         !ui.ImageFilter.isShaderFilterSupported ||
         _program == null) {
       return blur;
     }
-    _shader?.dispose();
-    final shader = _program!.fragmentShader()
+    final shader = _shader ??= _program!.fragmentShader();
+    shader
       ..setFloat(2, widget.borderRadius.topLeft.x)
-      ..setFloat(3, AndroidAppearanceTokens.liquidGlassRefractionHeight)
-      ..setFloat(4, AndroidAppearanceTokens.liquidGlassRefractionAmount)
-      ..setFloat(5, AndroidAppearanceTokens.liquidGlassChromaticAberration);
-    _shader = shader;
+      ..setFloat(
+        3,
+        AndroidAppearanceTokens.liquidGlassRefractionHeight * liquidProgress,
+      )
+      ..setFloat(
+        4,
+        AndroidAppearanceTokens.liquidGlassRefractionAmount * liquidProgress,
+      )
+      ..setFloat(
+        5,
+        AndroidAppearanceTokens.liquidGlassChromaticAberration * liquidProgress,
+      );
     return ui.ImageFilter.compose(
       outer: ui.ImageFilter.shader(shader),
       inner: blur,
@@ -119,16 +137,21 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
       return widget.child;
     }
     final colorScheme = Theme.of(context).colorScheme;
-    final shape = RoundedSuperellipseBorder(borderRadius: widget.borderRadius);
-    final surfaceColor = widget.liquidGlass
-        ? colorScheme.surface.withValues(
-            alpha: AndroidAppearanceTokens.liquidGlassTintOpacity,
-          )
-        : widget.blur
-        ? colorScheme.surface.withValues(
-            alpha: AndroidAppearanceTokens.blurredBarTintOpacity,
-          )
-        : colorScheme.surfaceContainer;
+    final liquidProgress = widget.liquidProgress.clamp(0.0, 1.0);
+    final shape =
+        widget.shape ??
+        RoundedSuperellipseBorder(borderRadius: widget.borderRadius);
+    final surfaceColor =
+        widget.surfaceColor ??
+        (widget.liquidGlass
+            ? colorScheme.surface.withValues(
+                alpha: AndroidAppearanceTokens.liquidGlassTintOpacity,
+              )
+            : widget.blur
+            ? colorScheme.surface.withValues(
+                alpha: AndroidAppearanceTokens.blurredBarTintOpacity,
+              )
+            : colorScheme.surfaceContainer);
     Widget surface = Stack(
       fit: StackFit.passthrough,
       children: [
@@ -144,20 +167,26 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
                     colors: [
                       Colors.white.withValues(
                         alpha:
-                            AndroidAppearanceTokens.liquidGlassHighlightOpacity,
+                            AndroidAppearanceTokens
+                                .liquidGlassHighlightOpacity *
+                            liquidProgress,
                       ),
                       colorScheme.primary.withValues(
-                        alpha: AndroidAppearanceTokens.liquidGlassAccentOpacity,
+                        alpha:
+                            AndroidAppearanceTokens.liquidGlassAccentOpacity *
+                            liquidProgress,
                       ),
                       Colors.transparent,
                     ],
                     stops: const [0, 0.38, 1],
                   ),
-                  shape: RoundedSuperellipseBorder(
-                    borderRadius: widget.borderRadius,
+                  shape: shape.copyWith(
                     side: BorderSide(
                       color: Colors.white.withValues(
-                        alpha: AndroidAppearanceTokens.liquidGlassBorderOpacity,
+                        alpha:
+                            0.12 +
+                            AndroidAppearanceTokens.liquidGlassBorderOpacity *
+                                liquidProgress,
                       ),
                     ),
                   ),

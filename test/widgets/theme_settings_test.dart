@@ -89,22 +89,22 @@ void main() {
 
     await tester.tap(findListTileByKey('interface-style-selector'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(localizations.materialStyle));
-    await tester.pumpAndSettle();
-
-    expect(
-      container.read(themeSettingProvider).interfaceStyle,
-      InterfaceStyle.material,
-    );
-
-    await tester.tap(findListTileByKey('interface-style-selector'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text(localizations.miuixStyle));
     await tester.pumpAndSettle();
 
     expect(
       container.read(themeSettingProvider).interfaceStyle,
       InterfaceStyle.miuix,
+    );
+
+    await tester.tap(findListTileByKey('interface-style-selector'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(localizations.materialStyle));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(themeSettingProvider).interfaceStyle,
+      InterfaceStyle.material,
     );
   });
 
@@ -134,5 +134,40 @@ void main() {
       tester.widget<Scaffold>(find.byType(Scaffold)).extendBodyBehindAppBar,
       true,
     );
+  });
+
+  testWidgets('Miuix app bar title uses directional start alignment', (
+    tester,
+  ) async {
+    const appearance = AppearanceTheme(
+      isAndroid: true,
+      interfaceStyle: InterfaceStyle.miuix,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.delegate.supportedLocales,
+        theme: applyAppearanceComponentTheme(
+          ThemeData(extensions: const [appearance]),
+          appearance,
+        ),
+        home: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: CommonScaffold(title: 'Page', body: SizedBox.shrink()),
+        ),
+      ),
+    );
+
+    final titleAlignments = tester
+        .widgetList<Align>(
+          find.ancestor(of: find.text('Page'), matching: find.byType(Align)),
+        )
+        .map((align) => align.alignment);
+    expect(titleAlignments, contains(AlignmentDirectional.bottomStart));
   });
 }

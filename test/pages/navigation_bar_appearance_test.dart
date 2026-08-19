@@ -12,6 +12,19 @@ import 'package:flutter_test/flutter_test.dart';
 void _ignoreSelection(int index) {}
 
 void main() {
+  testWidgets('Android root delegates predictive back to the system', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: HomeBackScopeContainer(isAndroid: true, child: Text('root')),
+      ),
+    );
+
+    expect(find.text('root'), findsOneWidget);
+    expect(find.byType(CommonPopScope), findsNothing);
+  });
+
   Future<ProviderContainer> pumpHome(
     WidgetTester tester,
     AppearanceTheme appearance,
@@ -131,16 +144,17 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    final surface = tester.widget<AndroidGlassSurface>(
+    final surfaces = tester.widgetList<AndroidGlassSurface>(
       find.byType(AndroidGlassSurface),
     );
-    final navigation = tester.widget<MiuixBottomNavigationBar>(
-      find.byType(MiuixBottomNavigationBar),
-    );
+    final track = surfaces.firstWhere((surface) => !surface.liquidGlass);
+    final thumb = surfaces.firstWhere((surface) => surface.liquidGlass);
 
-    expect(surface.liquidGlass, true);
-    expect(navigation.floating, true);
-    expect(find.byType(BackdropFilter), findsOneWidget);
+    expect(find.byType(LiquidToggleNavigationBar), findsOneWidget);
+    expect(find.byType(MiuixBottomNavigationBar), findsNothing);
+    expect(track.blur, true);
+    expect(thumb.liquidProgress, 0);
+    expect(find.byType(BackdropFilter), findsNWidgets(2));
     expect(find.byType(ClipPath), findsWidgets);
     expect(
       AndroidAppearanceTokens.liquidGlassBlurSigma,
@@ -148,13 +162,9 @@ void main() {
     );
     expect(AndroidAppearanceTokens.liquidGlassRefractionAmount, greaterThan(0));
     expect(
-      surface.borderRadius,
-      AndroidAppearanceTokens.floatingBarBorderRadius,
-    );
-    expect(
-      find.ancestor(
-        of: find.byType(AndroidGlassSurface),
-        matching: find.byType(Positioned),
+      find.descendant(
+        of: find.byType(LiquidToggleNavigationBar),
+        matching: find.byType(PositionedDirectional),
       ),
       findsOneWidget,
     );
@@ -167,6 +177,36 @@ void main() {
               padding >= AndroidAppearanceTokens.miuixNavigationBarHeight,
         );
     expect(contentHasNavigationInset, true);
+
+    final dragTarget = find.descendant(
+      of: find.byType(LiquidToggleNavigationBar),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is GestureDetector && widget.onHorizontalDragUpdate != null,
+      ),
+    );
+    final gesture = await tester.startGesture(tester.getCenter(dragTarget));
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      tester
+          .widgetList<AndroidGlassSurface>(find.byType(AndroidGlassSurface))
+          .firstWhere((surface) => surface.liquidGlass)
+          .liquidProgress,
+      greaterThan(0),
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(container.read(currentPageLabelProvider), PageLabel.tools);
+    final thumbTransform = tester.widget<Transform>(
+      find.byKey(const ValueKey('liquid-toggle-thumb-transform')),
+    );
+    expect(thumbTransform.transformHitTests, false);
+    expect(thumbTransform.transform.storage[0], closeTo(1, 0.001));
+    expect(thumbTransform.transform.storage[5], closeTo(1, 0.001));
   });
 
   testWidgets('floating Miuix indicator follows RTL navigation order', (

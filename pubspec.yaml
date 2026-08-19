@@ -105,6 +105,8 @@ flutter:
   shaders:
     - shaders/liquid_glass.frag
   assets:
+    - LICENSES/AndroidLiquidGlass.txt
+    - THIRD_PARTY_NOTICES.md
     - assets/data/
     - assets/fonts/
     - assets/images/

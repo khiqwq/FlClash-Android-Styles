@@ -342,7 +342,7 @@ class ListItem<T> extends StatelessWidget {
           ? context.textTheme.titleMedium?.copyWith(
               color: context.colorScheme.onSurface,
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w400,
             )
           : titleTextStyle,
       subtitleTextStyle: useMiuixTokens

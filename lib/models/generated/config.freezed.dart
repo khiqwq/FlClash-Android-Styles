@@ -2241,7 +2241,7 @@ return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.sch
 @JsonSerializable()
 
 class _ThemeProps implements ThemeProps {
-  const _ThemeProps({this.primaryColor, final  List<int> primaryColors = defaultPrimaryColors, this.themeMode = ThemeMode.dark, this.schemeVariant = DynamicSchemeVariant.content, this.pureBlack = false, this.textScale = const TextScale(), @JsonKey(unknownEnumValue: InterfaceStyle.material) this.interfaceStyle = InterfaceStyle.miuix, this.interfaceStyleVersion = 1, this.blur = false, this.floatingBottomBar = false, this.liquidGlass = false, this.predictiveBack = true}): _primaryColors = primaryColors;
+  const _ThemeProps({this.primaryColor, final  List<int> primaryColors = defaultPrimaryColors, this.themeMode = ThemeMode.dark, this.schemeVariant = DynamicSchemeVariant.content, this.pureBlack = false, this.textScale = const TextScale(), @JsonKey(unknownEnumValue: InterfaceStyle.material) this.interfaceStyle = InterfaceStyle.material, this.interfaceStyleVersion = 2, this.blur = false, this.floatingBottomBar = false, this.liquidGlass = false, this.predictiveBack = true}): _primaryColors = primaryColors;
   factory _ThemeProps.fromJson(Map<String, dynamic> json) => _$ThemePropsFromJson(json);
 
 @override final  int? primaryColor;

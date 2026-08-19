@@ -9,6 +9,8 @@ void main() {
     final effect = File('lib/widgets/effect.dart').readAsStringSync();
 
     expect(pubspec, contains('shaders/liquid_glass.frag'));
+    expect(pubspec, contains('LICENSES/AndroidLiquidGlass.txt'));
+    expect(pubspec, contains('THIRD_PARTY_NOTICES.md'));
     expect(shader, contains('rounded_rect_distance'));
     expect(shader, contains('u_chromatic_aberration'));
     expect(effect, contains('ImageFilter.isShaderFilterSupported'));

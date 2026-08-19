@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 abstract final class AndroidAppearanceTokens {
   static const double barBlurSigma = 18;
   static const double liquidGlassBlurSigma = 8;
-  static const double liquidGlassRefractionHeight = 24;
-  static const double liquidGlassRefractionAmount = 18;
-  static const double liquidGlassChromaticAberration = 1.25;
+  static const double liquidGlassRefractionHeight = 5;
+  static const double liquidGlassRefractionAmount = 10;
+  static const double liquidGlassChromaticAberration = 0.75;
   static const double materialNavigationBarHeight = 80;
   static const double miuixNavigationBarHeight = 68;
-  static const double miuixAppBarHeight = 76;
-  static const double miuixComponentCornerRadius = 22;
-  static const double miuixSectionCornerRadius = 24;
+  static const double miuixAppBarHeight = 92;
+  static const double miuixComponentCornerRadius = 16;
+  static const double miuixSectionCornerRadius = 16;
   static const double miuixDialogCornerRadius = 26;
   static const double miuixSheetCornerRadius = 30;
   static const double miuixListVerticalPadding = 12;
@@ -119,22 +119,22 @@ ThemeData applyAppearanceComponentTheme(
     ),
     shape: WidgetStatePropertyAll(componentShape),
   );
-  final colorScheme = _miuixColorScheme(theme.colorScheme);
+  final colorScheme = theme.colorScheme;
   final textTheme = theme.textTheme.copyWith(
     headlineSmall: theme.textTheme.headlineSmall?.copyWith(
-      fontSize: 28,
+      fontSize: 32,
       height: 1.15,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.4,
-    ),
-    titleLarge: theme.textTheme.titleLarge?.copyWith(
-      fontSize: 22,
-      height: 1.2,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w400,
       letterSpacing: -0.2,
     ),
+    titleLarge: theme.textTheme.titleLarge?.copyWith(
+      fontSize: 24,
+      height: 1.2,
+      fontWeight: FontWeight.w400,
+    ),
     titleMedium: theme.textTheme.titleMedium?.copyWith(
-      fontWeight: FontWeight.w600,
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
     ),
   );
   return theme.copyWith(
@@ -209,46 +209,6 @@ ThemeData applyAppearanceComponentTheme(
             ? colorScheme.onPrimary
             : colorScheme.onSurfaceVariant,
       ),
-    ),
-  );
-}
-
-ColorScheme _miuixColorScheme(ColorScheme source) {
-  final isDark = source.brightness == Brightness.dark;
-  if (isDark && source.surface == Colors.black) {
-    return source;
-  }
-  final surface = Color.alphaBlend(
-    source.primary.withValues(alpha: isDark ? 0.035 : 0.025),
-    isDark ? const Color(0xFF111114) : const Color(0xFFF6F6F8),
-  );
-  final lowest = isDark ? const Color(0xFF0C0C0F) : const Color(0xFFFFFFFF);
-  final low = Color.alphaBlend(
-    source.primary.withValues(alpha: isDark ? 0.045 : 0.025),
-    isDark ? const Color(0xFF17171B) : const Color(0xFFFCFCFD),
-  );
-  final container = Color.alphaBlend(
-    source.primary.withValues(alpha: isDark ? 0.055 : 0.04),
-    isDark ? const Color(0xFF1D1D22) : const Color(0xFFFFFFFF),
-  );
-  final high = Color.alphaBlend(
-    source.primary.withValues(alpha: isDark ? 0.07 : 0.055),
-    isDark ? const Color(0xFF25252B) : const Color(0xFFF0F0F4),
-  );
-  final highest = Color.alphaBlend(
-    source.primary.withValues(alpha: isDark ? 0.09 : 0.07),
-    isDark ? const Color(0xFF303037) : const Color(0xFFE7E7EC),
-  );
-  return source.copyWith(
-    surface: surface,
-    surfaceContainerLowest: lowest,
-    surfaceContainerLow: low,
-    surfaceContainer: container,
-    surfaceContainerHigh: high,
-    surfaceContainerHighest: highest,
-    outlineVariant: Color.alphaBlend(
-      source.primary.withValues(alpha: 0.05),
-      source.outlineVariant,
     ),
   );
 }

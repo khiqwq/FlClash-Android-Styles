@@ -61,13 +61,13 @@ void main() {
       final themeProps = configMap['themeProps']! as Map<String, Object?>;
       themeProps
         ..remove('interfaceStyleVersion')
-        ..['interfaceStyle'] = 'material';
+        ..['interfaceStyle'] = 'miuix';
       final store = _FakeMigrationStore(configMap: configMap, version: 1);
 
       final config = await Migration(store: store).run();
 
-      expect(config.themeProps.interfaceStyle, InterfaceStyle.miuix);
-      expect(config.themeProps.interfaceStyleVersion, 1);
+      expect(config.themeProps.interfaceStyle, InterfaceStyle.material);
+      expect(config.themeProps.interfaceStyleVersion, 2);
       expect(store.savedConfig, config);
       expect(store.events, ['getConfigMap', 'getVersion', 'saveConfig']);
     });
