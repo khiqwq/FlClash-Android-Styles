@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+void _ignoreSelection(int index) {}
+
 void main() {
   Future<ProviderContainer> pumpHome(
     WidgetTester tester,
@@ -75,27 +77,43 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    final navigationTheme = tester.widget<NavigationBarTheme>(
-      find.byType(NavigationBarTheme),
+    final navigation = tester.widget<MiuixBottomNavigationBar>(
+      find.byType(MiuixBottomNavigationBar),
     );
 
+    expect(navigation.floating, false);
+    expect(navigation.selectedIndex, 0);
     expect(
-      navigationTheme.data.height,
-      AndroidAppearanceTokens.miuixNavigationBarHeight,
+      find.byKey(const ValueKey('miuix-bottom-navigation')),
+      findsOneWidget,
     );
+    expect(find.byType(NavigationBar), findsNothing);
     expect(
-      navigationTheme.data.indicatorShape,
-      isA<RoundedSuperellipseBorder>(),
+      find.ancestor(
+        of: find.byType(MiuixBottomNavigationBar),
+        matching: find.byType(SafeArea),
+      ),
+      findsOneWidget,
     );
-    expect(
-      navigationTheme.data.iconTheme?.resolve(const <WidgetState>{})?.size,
-      26,
+
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(MiuixBottomNavigationBar),
+            matching: find.byType(InkWell),
+          )
+          .last,
     );
+    await tester.pump(kTabScrollDuration);
+
+    expect(container.read(currentPageLabelProvider), PageLabel.tools);
     expect(
-      navigationTheme.data.labelTextStyle?.resolve(const {
-        WidgetState.selected,
-      })?.fontWeight,
-      FontWeight.bold,
+      tester
+          .widget<MiuixBottomNavigationBar>(
+            find.byType(MiuixBottomNavigationBar),
+          )
+          .selectedIndex,
+      1,
     );
   });
 
@@ -106,6 +124,7 @@ void main() {
       tester,
       const AppearanceTheme(
         isAndroid: true,
+        interfaceStyle: InterfaceStyle.miuix,
         floatingBottomBar: true,
         liquidGlass: true,
       ),
@@ -115,8 +134,12 @@ void main() {
     final surface = tester.widget<AndroidGlassSurface>(
       find.byType(AndroidGlassSurface),
     );
+    final navigation = tester.widget<MiuixBottomNavigationBar>(
+      find.byType(MiuixBottomNavigationBar),
+    );
 
     expect(surface.liquidGlass, true);
+    expect(navigation.floating, true);
     expect(find.byType(BackdropFilter), findsOneWidget);
     expect(find.byType(ClipPath), findsWidgets);
     expect(
@@ -141,9 +164,69 @@ void main() {
         .map((element) => (element.widget as MediaQuery).data.padding.bottom)
         .any(
           (padding) =>
-              padding >= AndroidAppearanceTokens.materialNavigationBarHeight,
+              padding >= AndroidAppearanceTokens.miuixNavigationBarHeight,
         );
     expect(contentHasNavigationInset, true);
+  });
+
+  testWidgets('floating Miuix indicator follows RTL navigation order', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          extensions: const [
+            AppearanceTheme(
+              isAndroid: true,
+              interfaceStyle: InterfaceStyle.miuix,
+            ),
+          ],
+        ),
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Material(
+            child: MiuixBottomNavigationBar(
+              items: [
+                NavigationItem(
+                  icon: const Icon(Icons.home),
+                  label: PageLabel.dashboard,
+                  builder: (_) => const SizedBox.shrink(),
+                ),
+                NavigationItem(
+                  icon: const Icon(Icons.settings),
+                  label: PageLabel.tools,
+                  builder: (_) => const SizedBox.shrink(),
+                ),
+              ],
+              selectedIndex: 0,
+              floating: true,
+              onSelected: _ignoreSelection,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final indicator = tester.widget<AnimatedAlign>(find.byType(AnimatedAlign));
+    expect(indicator.alignment, const AlignmentDirectional(-1, 0));
+  });
+
+  testWidgets('Material floating mode keeps Material navigation', (
+    tester,
+  ) async {
+    final container = await pumpHome(
+      tester,
+      const AppearanceTheme(
+        isAndroid: true,
+        interfaceStyle: InterfaceStyle.material,
+        floatingBottomBar: true,
+      ),
+    );
+    addTearDown(container.dispose);
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(MiuixBottomNavigationBar), findsNothing);
   });
 
   testWidgets('liquid glass falls back until the bottom bar is floating', (

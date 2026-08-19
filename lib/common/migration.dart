@@ -92,8 +92,12 @@ class Migration {
         final hasPlainTextDavPassword =
             storedDavPassword != null &&
             storedDavPassword == config.davProps?.password;
-        if (hasPlainTextDavPassword && !await _store.saveConfig(config)) {
-          throw StateError('Failed to obfuscate the legacy WebDAV password');
+        final needsInterfaceStyleMigration = _needsInterfaceStyleMigration(
+          configMap,
+        );
+        if ((hasPlainTextDavPassword || needsInterfaceStyleMigration) &&
+            !await _store.saveConfig(config)) {
+          throw StateError('Failed to save upgraded preferences');
         }
         return config;
       }
@@ -141,8 +145,14 @@ String? _getStoredDavPassword(Map<String, Object?>? configMap) {
   if (dav is! Map) {
     return null;
   }
+
   final password = dav['password'];
   return password is String && password.isNotEmpty ? password : null;
+}
+
+bool _needsInterfaceStyleMigration(Map<String, Object?>? configMap) {
+  final themeProps = configMap?['themeProps'];
+  return themeProps is Map && !themeProps.containsKey('interfaceStyleVersion');
 }
 
 final migration = Migration(store: const _AppMigrationStore());

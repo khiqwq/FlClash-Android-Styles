@@ -282,7 +282,8 @@ _ThemeProps _$ThemePropsFromJson(Map<String, dynamic> json) => _ThemeProps(
         json['interfaceStyle'],
         unknownValue: InterfaceStyle.material,
       ) ??
-      InterfaceStyle.material,
+      InterfaceStyle.miuix,
+  interfaceStyleVersion: (json['interfaceStyleVersion'] as num?)?.toInt() ?? 1,
   blur: json['blur'] as bool? ?? false,
   floatingBottomBar: json['floatingBottomBar'] as bool? ?? false,
   liquidGlass: json['liquidGlass'] as bool? ?? false,
@@ -298,6 +299,7 @@ Map<String, dynamic> _$ThemePropsToJson(_ThemeProps instance) =>
       'pureBlack': instance.pureBlack,
       'textScale': instance.textScale,
       'interfaceStyle': _$InterfaceStyleEnumMap[instance.interfaceStyle]!,
+      'interfaceStyleVersion': instance.interfaceStyleVersion,
       'blur': instance.blur,
       'floatingBottomBar': instance.floatingBottomBar,
       'liquidGlass': instance.liquidGlass,

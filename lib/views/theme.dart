@@ -3,6 +3,7 @@
 import 'dart:math';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -70,8 +71,8 @@ class AndroidAppearanceSettings extends ConsumerWidget {
         (state) => VM3(state.blur, state.floatingBottomBar, state.liquidGlass),
       ),
     );
-    return Column(
-      children: [
+    return AdaptiveListSection(
+      items: [
         ListItem.toggle(
           key: const ValueKey('blur-toggle'),
           leading: const Icon(Icons.blur_on),
@@ -146,12 +147,33 @@ class ItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
+    final content = Wrap(
       runSpacing: 16,
       children: [
         InfoHeader(info: info, actions: actions),
         child,
       ],
+    );
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
+    if (!isMiuix) {
+      return content;
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Material(
+        color: context.colorScheme.surfaceContainer,
+        clipBehavior: Clip.antiAlias,
+        shape: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(
+            Radius.circular(AndroidAppearanceTokens.miuixSectionCornerRadius),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: content,
+        ),
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/enum/enum.dart';
@@ -11,6 +13,138 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 typedef OnSelected = void Function(int index);
+
+class MiuixBottomNavigationBar extends StatelessWidget {
+  final List<NavigationItem> items;
+  final int selectedIndex;
+  final bool floating;
+  final OnSelected onSelected;
+
+  const MiuixBottomNavigationBar({
+    super.key,
+    required this.items,
+    required this.selectedIndex,
+    required this.floating,
+    required this.onSelected,
+  });
+
+  AlignmentGeometry _indicatorAlignment() {
+    if (items.length <= 1) {
+      return AlignmentDirectional.center;
+    }
+    return AlignmentDirectional(-1 + 2 * selectedIndex / (items.length - 1), 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    return SizedBox(
+      key: const ValueKey('miuix-bottom-navigation'),
+      height: AndroidAppearanceTokens.miuixNavigationBarHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (floating)
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+              alignment: _indicatorAlignment(),
+              child: FractionallySizedBox(
+                widthFactor: 1 / items.length,
+                heightFactor: 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 6,
+                  ),
+                  child: DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.14),
+                      shape: StadiumBorder(
+                        side: BorderSide(
+                          color: colorScheme.primary.withValues(alpha: 0.12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Row(
+            children: [
+              for (var index = 0; index < items.length; index++)
+                Expanded(
+                  child: _MiuixNavigationItem(
+                    item: items[index],
+                    selected: index == selectedIndex,
+                    onPressed: () => onSelected(index),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiuixNavigationItem extends StatelessWidget {
+  final NavigationItem item;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  const _MiuixNavigationItem({
+    required this.item,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? context.colorScheme.primary
+        : context.colorScheme.onSurfaceVariant;
+    final label = Intl.message(item.label.name);
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: label,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onPressed,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              scale: selected ? 1.12 : 1,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutBack,
+              child: IconTheme.merge(
+                data: IconThemeData(size: 25, color: color),
+                child: item.icon,
+              ),
+            ),
+            const SizedBox(height: 2),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              style:
+                  context.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontSize: 11,
+                    height: 1.15,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ) ??
+                  TextStyle(color: color, fontSize: 11),
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -51,32 +185,43 @@ class HomePage extends ConsumerWidget {
                   isAndroidAppearance && isFloating && appearance.liquidGlass;
               final isTranslucent =
                   isAndroidAppearance && (appearance.blur || isFloating);
-              final navigationBarTheme = appearance.isMiuix
-                  ? _NavigationBarDefaultsMiuix(
-                      context,
-                      transparent: isTranslucent,
+              final useMiuixNavigation = appearance.isMiuix;
+              final bottomNavigationBar = useMiuixNavigation
+                  ? MiuixBottomNavigationBar(
+                      items: navigationItems,
+                      selectedIndex: currentIndex,
+                      floating: isFloating,
+                      onSelected: (index) {
+                        _handleToPage(navigationItems[index].label);
+                      },
                     )
-                  : _NavigationBarDefaultsM3(
-                      context,
-                      transparent: isTranslucent,
+                  : NavigationBarTheme(
+                      data: _NavigationBarDefaultsM3(
+                        context,
+                        transparent: isTranslucent,
+                      ),
+                      child: NavigationBar(
+                        destinations: navigationItems
+                            .map(
+                              (e) => NavigationDestination(
+                                icon: e.icon,
+                                label: Intl.message(e.label.name),
+                              ),
+                            )
+                            .toList(),
+                        onDestinationSelected: (index) {
+                          _handleToPage(navigationItems[index].label);
+                        },
+                        selectedIndex: currentIndex,
+                      ),
                     );
-              final bottomNavigationBar = NavigationBarTheme(
-                data: navigationBarTheme,
-                child: NavigationBar(
-                  destinations: navigationItems
-                      .map(
-                        (e) => NavigationDestination(
-                          icon: e.icon,
-                          label: Intl.message(e.label.name),
-                        ),
-                      )
-                      .toList(),
-                  onDestinationSelected: (index) {
-                    _handleToPage(navigationItems[index].label);
-                  },
-                  selectedIndex: currentIndex,
-                ),
-              );
+              final coloredBottomNavigationBar =
+                  appearance.isMiuix && !isTranslucent
+                  ? ColoredBox(
+                      color: context.colorScheme.surfaceContainer,
+                      child: bottomNavigationBar,
+                    )
+                  : bottomNavigationBar;
               final navigationSurface = isTranslucent
                   ? AndroidGlassSurface(
                       blur: appearance.blur,
@@ -84,23 +229,34 @@ class HomePage extends ConsumerWidget {
                       borderRadius: isFloating
                           ? AndroidAppearanceTokens.floatingBarBorderRadius
                           : BorderRadius.zero,
-                      child: bottomNavigationBar,
+                      child: coloredBottomNavigationBar,
                     )
-                  : bottomNavigationBar;
+                  : coloredBottomNavigationBar;
               final effectiveBottomNavigationBar = isFloating
-                  ? Padding(
-                      padding: AndroidAppearanceTokens.floatingBarMargin,
-                      child: Material(
-                        elevation: 8,
-                        color: Colors.transparent,
-                        shadowColor: context.colorScheme.shadow.withValues(
-                          alpha: 0.24,
+                  ? Align(
+                      alignment: Alignment.bottomCenter,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: min(
+                            MediaQuery.sizeOf(context).width - 24,
+                            navigationItems.length * 88 + 8,
+                          ),
                         ),
-                        shape: const RoundedSuperellipseBorder(
-                          borderRadius:
-                              AndroidAppearanceTokens.floatingBarBorderRadius,
+                        child: Padding(
+                          padding: AndroidAppearanceTokens.floatingBarMargin,
+                          child: Material(
+                            elevation: 5,
+                            color: Colors.transparent,
+                            shadowColor: context.colorScheme.shadow.withValues(
+                              alpha: 0.22,
+                            ),
+                            shape: const RoundedSuperellipseBorder(
+                              borderRadius: AndroidAppearanceTokens
+                                  .floatingBarBorderRadius,
+                            ),
+                            child: navigationSurface,
+                          ),
                         ),
-                        child: navigationSurface,
                       ),
                     )
                   : navigationSurface;
@@ -163,6 +319,9 @@ class HomePage extends ConsumerWidget {
                   ],
                 );
               }
+              final nonFloatingNavigationBar = appearance.isMiuix
+                  ? SafeArea(top: false, child: effectiveBottomNavigationBar)
+                  : effectiveBottomNavigationBar;
               return Column(
                 children: [
                   Flexible(flex: 1, child: content),
@@ -174,7 +333,7 @@ class HomePage extends ConsumerWidget {
                       removeLeft: true,
                       removeRight: true,
                       context: context,
-                      child: effectiveBottomNavigationBar,
+                      child: nonFloatingNavigationBar,
                     ),
                   ),
                 ],
@@ -393,47 +552,6 @@ class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
             : states.contains(WidgetState.selected)
             ? _colors.onSurface
             : _colors.onSurfaceVariant,
-      );
-    });
-  }
-}
-
-class _NavigationBarDefaultsMiuix extends _NavigationBarDefaultsM3 {
-  _NavigationBarDefaultsMiuix(super.context, {required super.transparent})
-    : super(height: AndroidAppearanceTokens.miuixNavigationBarHeight);
-
-  @override
-  Color? get indicatorColor => _colors.primary.withValues(alpha: 0.14);
-
-  @override
-  ShapeBorder? get indicatorShape => const RoundedSuperellipseBorder(
-    borderRadius: BorderRadius.all(Radius.circular(18)),
-  );
-
-  @override
-  WidgetStateProperty<IconThemeData?>? get iconTheme {
-    return WidgetStateProperty.resolveWith((states) {
-      final selected = states.contains(WidgetState.selected);
-      return IconThemeData(
-        size: 26,
-        color: selected
-            ? _colors.onSurface
-            : _colors.onSurface.withValues(alpha: 0.4),
-      );
-    });
-  }
-
-  @override
-  WidgetStateProperty<TextStyle?>? get labelTextStyle {
-    return WidgetStateProperty.resolveWith((states) {
-      final selected = states.contains(WidgetState.selected);
-      return _textTheme.labelMedium?.copyWith(
-        fontSize: 12,
-        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-        color: selected
-            ? _colors.onSurface
-            : _colors.onSurface.withValues(alpha: 0.4),
-        overflow: TextOverflow.ellipsis,
       );
     });
   }

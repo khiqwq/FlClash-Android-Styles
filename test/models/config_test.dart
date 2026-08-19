@@ -303,12 +303,13 @@ void main() {
       expect(props.themeMode, ThemeMode.dark);
       expect(props.pureBlack, false);
       expect(props.textScale.scale, 1.0);
-      expect(props.interfaceStyle, InterfaceStyle.material);
+      expect(props.interfaceStyle, InterfaceStyle.miuix);
+      expect(props.interfaceStyleVersion, 1);
       expect(props.blur, false);
       expect(props.floatingBottomBar, false);
       expect(props.liquidGlass, false);
       expect(props.predictiveBack, true);
-      expect(props.toJson()['interfaceStyle'], 'material');
+      expect(props.toJson()['interfaceStyle'], 'miuix');
     });
 
     test('safeFromJson returns default on null', () {
@@ -319,11 +320,22 @@ void main() {
     test('legacy JSON receives Android appearance defaults', () {
       final result = ThemeProps.fromJson({});
 
-      expect(result.interfaceStyle, InterfaceStyle.material);
+      expect(result.interfaceStyle, InterfaceStyle.miuix);
       expect(result.blur, false);
       expect(result.floatingBottomBar, false);
       expect(result.liquidGlass, false);
       expect(result.predictiveBack, true);
+    });
+
+    test('safeFromJson upgrades the first Android appearance format', () {
+      final result = ThemeProps.safeFromJson({
+        'interfaceStyle': 'material',
+        'themeMode': 'dark',
+      });
+
+      expect(result.interfaceStyle, InterfaceStyle.miuix);
+      expect(result.interfaceStyleVersion, 1);
+      expect(result.themeMode, ThemeMode.dark);
     });
 
     test('unknown interface style preserves other theme preferences', () {

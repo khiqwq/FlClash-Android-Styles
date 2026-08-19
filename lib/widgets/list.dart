@@ -332,17 +332,44 @@ class ListItem<T> extends StatelessWidget {
     final appearance = Theme.of(context).extension<AppearanceTheme>();
     final listTileTheme = Theme.of(context).listTileTheme;
     final useMiuixTokens = appearance?.isMiuix == true;
+    final effectiveLeading = leading ?? this.leading;
     return ListTile(
       key: key,
       dense: dense,
       visualDensity: visualDensity,
-      tileColor: color,
-      titleTextStyle: titleTextStyle,
-      subtitleTextStyle: subtitleTextStyle,
-      leading: leading ?? this.leading,
+      tileColor: useMiuixTokens ? Colors.transparent : color,
+      titleTextStyle: useMiuixTokens
+          ? context.textTheme.titleMedium?.copyWith(
+              color: context.colorScheme.onSurface,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            )
+          : titleTextStyle,
+      subtitleTextStyle: useMiuixTokens
+          ? context.textTheme.bodySmall?.copyWith(
+              color: context.colorScheme.onSurfaceVariant,
+              height: 1.25,
+            )
+          : subtitleTextStyle,
+      leading: useMiuixTokens && effectiveLeading != null
+          ? SizedBox(
+              width: 32,
+              child: IconTheme.merge(
+                data: IconThemeData(
+                  size: 24,
+                  color: context.colorScheme.onSurface,
+                ),
+                child: effectiveLeading,
+              ),
+            )
+          : effectiveLeading,
       horizontalTitleGap: horizontalTitleGap,
       title: title,
-      minTileHeight: minTileHeight,
+      minTileHeight: useMiuixTokens
+          ? subtitle == null
+                ? 60
+                : 72
+          : minTileHeight,
       minVerticalPadding: useMiuixTokens
           ? listTileTheme.minVerticalPadding ?? minVerticalPadding
           : minVerticalPadding,
@@ -517,9 +544,13 @@ class ListHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
     return Container(
       alignment: Alignment.centerLeft,
-      padding: padding ?? listHeaderPadding,
+      padding: isMiuix
+          ? const EdgeInsets.fromLTRB(20, 22, 16, 9)
+          : padding ?? listHeaderPadding,
       child: Row(
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -531,10 +562,15 @@ class ListHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: context.textTheme.labelLarge?.copyWith(
-                    color: context.colorScheme.onSurfaceVariant.opacity80,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: isMiuix
+                      ? context.textTheme.titleSmall?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        )
+                      : context.textTheme.labelLarge?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant.opacity80,
+                          fontWeight: FontWeight.w600,
+                        ),
                 ),
                 if (subTitle != null)
                   Text(
@@ -557,6 +593,48 @@ class ListHeader extends StatelessWidget {
   }
 }
 
+class AdaptiveListSection extends StatelessWidget {
+  final List<Widget> items;
+  final bool separated;
+
+  const AdaptiveListSection({
+    super.key,
+    required this.items,
+    this.separated = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
+    final children = separated
+        ? items.separated(
+            Divider(
+              height: isMiuix ? 1 : 0,
+              indent: isMiuix ? 68 : 0,
+              endIndent: isMiuix ? 16 : 0,
+            ),
+          )
+        : items;
+    if (!isMiuix) {
+      return Column(mainAxisSize: MainAxisSize.min, children: [...children]);
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Material(
+        color: context.colorScheme.surfaceContainer,
+        clipBehavior: Clip.antiAlias,
+        shape: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(
+            Radius.circular(AndroidAppearanceTokens.miuixSectionCornerRadius),
+          ),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [...children]),
+      ),
+    );
+  }
+}
+
 List<Widget> generateSection({
   String? title,
   required Iterable<Widget> items,
@@ -564,11 +642,9 @@ List<Widget> generateSection({
   bool isFirst = false,
   bool separated = true,
 }) {
-  final genItems = separated
-      ? items.separated(const Divider(height: 0))
-      : items;
+  final itemList = items.toList();
   return [
-    if (items.isNotEmpty && title != null)
+    if (itemList.isNotEmpty && title != null)
       ListHeader(
         title: title,
         actions: actions,
@@ -576,7 +652,8 @@ List<Widget> generateSection({
             ? listHeaderPadding.copyWith(top: 8.ap)
             : listHeaderPadding,
       ),
-    ...genItems,
+    if (itemList.isNotEmpty)
+      AdaptiveListSection(items: itemList, separated: separated),
   ];
 }
 

@@ -44,14 +44,10 @@ class _ToolViewState extends ConsumerState<ToolsView> {
   }
 
   Widget _buildNavigationMenu(List<NavigationItem> navigationItems) {
-    return Column(
-      children: [
-        for (final navigationItem in navigationItems) ...[
+    return AdaptiveListSection(
+      items: [
+        for (final navigationItem in navigationItems)
           _buildNavigationMenuItem(navigationItem),
-          navigationItems.last != navigationItem
-              ? const Divider(height: 0)
-              : Container(),
-        ],
       ],
     );
   }

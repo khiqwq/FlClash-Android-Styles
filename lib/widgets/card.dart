@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
@@ -116,6 +117,8 @@ class CommonCard extends StatelessWidget {
 
   BorderSide _buildBorderSide(BuildContext context, Set<WidgetState> states) {
     final colorScheme = context.colorScheme;
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
     if (isError) {
       if (type == CommonCardType.filled) {
         return BorderSide(color: colorScheme.error);
@@ -137,6 +140,9 @@ class CommonCard extends StatelessWidget {
     if (type == CommonCardType.filled) {
       return BorderSide.none;
     }
+    if (isMiuix && !isSelected) {
+      return BorderSide.none;
+    }
     final hoverColor = isSelected
         ? colorScheme.primary.opacity80
         : colorScheme.primary.opacity60;
@@ -154,6 +160,13 @@ class CommonCard extends StatelessWidget {
 
   Color? _buildBackgroundColor(BuildContext context) {
     final colorScheme = context.colorScheme;
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
+    if (isMiuix) {
+      return isSelected
+          ? colorScheme.primaryContainer
+          : colorScheme.surfaceContainer;
+    }
     if (type == CommonCardType.filled) {
       if (isSelected) {
         return colorScheme.secondaryContainer.opacity80;

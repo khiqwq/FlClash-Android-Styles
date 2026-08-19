@@ -61,9 +61,12 @@ jobs:
           test/providers/config_test.dart
           test/l10n/app_localizations_test.dart
           test/l10n/localization_contract_test.dart
+          test/common/migration_test.dart
           test/common/appearance_theme_test.dart
           test/common/navigator_test.dart
           test/pages/navigation_bar_appearance_test.dart
+          test/pages/home_test.dart
+          test/widgets/miuix_redesign_test.dart
           test/widgets/theme_settings_test.dart
           test/widgets/views_smoke_test.dart
           test/widgets/scaffold_back_test.dart

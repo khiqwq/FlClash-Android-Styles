@@ -213,8 +213,9 @@ abstract class ThemeProps with _$ThemeProps {
     @Default(false) bool pureBlack,
     @Default(TextScale()) TextScale textScale,
     @JsonKey(unknownEnumValue: InterfaceStyle.material)
-    @Default(InterfaceStyle.material)
+    @Default(InterfaceStyle.miuix)
     InterfaceStyle interfaceStyle,
+    @Default(1) int interfaceStyleVersion,
     @Default(false) bool blur,
     @Default(false) bool floatingBottomBar,
     @Default(false) bool liquidGlass,
@@ -229,7 +230,14 @@ abstract class ThemeProps with _$ThemeProps {
       return defaultThemeProps;
     }
     try {
-      return ThemeProps.fromJson(json);
+      final props = ThemeProps.fromJson(json);
+      if (!json.containsKey('interfaceStyleVersion')) {
+        return props.copyWith(
+          interfaceStyle: InterfaceStyle.miuix,
+          interfaceStyleVersion: 1,
+        );
+      }
+      return props;
     } catch (_) {
       return defaultThemeProps;
     }

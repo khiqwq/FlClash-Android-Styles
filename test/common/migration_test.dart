@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:fl_clash/common/migration.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -54,6 +55,22 @@ void main() {
         expect(savedDavProps['password'], isNot(contains('secret')));
       },
     );
+
+    test('persists the Miuix interface migration once', () async {
+      final configMap = _createConfigMap();
+      final themeProps = configMap['themeProps']! as Map<String, Object?>;
+      themeProps
+        ..remove('interfaceStyleVersion')
+        ..['interfaceStyle'] = 'material';
+      final store = _FakeMigrationStore(configMap: configMap, version: 1);
+
+      final config = await Migration(store: store).run();
+
+      expect(config.themeProps.interfaceStyle, InterfaceStyle.miuix);
+      expect(config.themeProps.interfaceStyleVersion, 1);
+      expect(store.savedConfig, config);
+      expect(store.events, ['getConfigMap', 'getVersion', 'saveConfig']);
+    });
 
     test(
       'commits v0 cleanup and version only after migrated data is saved',

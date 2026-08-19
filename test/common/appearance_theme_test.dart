@@ -52,11 +52,25 @@ void main() {
       ),
     );
 
-    expect(theme.appBarTheme.toolbarHeight, 64);
-    expect(theme.listTileTheme.minVerticalPadding, 14);
-    expect(theme.listTileTheme.shape, isA<RoundedSuperellipseBorder>());
+    expect(theme.appBarTheme.toolbarHeight, 76);
+    expect(theme.appBarTheme.titleTextStyle?.fontSize, 28);
+    expect(theme.listTileTheme.minVerticalPadding, 12);
     expect(theme.cardTheme.shape, isA<RoundedSuperellipseBorder>());
     expect(theme.dialogTheme.shape, isA<RoundedSuperellipseBorder>());
+    expect(theme.scaffoldBackgroundColor, theme.colorScheme.surface);
+    expect(theme.colorScheme.surface, isNot(ThemeData().colorScheme.surface));
+    final pureBlackTheme = applyAppearanceComponentTheme(
+      ThemeData(
+        colorScheme: ThemeData.dark().colorScheme.copyWith(
+          surface: Colors.black,
+        ),
+      ),
+      const AppearanceTheme(
+        isAndroid: true,
+        interfaceStyle: InterfaceStyle.miuix,
+      ),
+    );
+    expect(pureBlackTheme.colorScheme.surface, Colors.black);
     expect(
       theme.filledButtonTheme.style?.shape?.resolve(const <WidgetState>{}),
       isA<RoundedSuperellipseBorder>(),

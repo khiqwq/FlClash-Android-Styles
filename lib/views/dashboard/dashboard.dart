@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:defer_pointer/defer_pointer.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -172,6 +173,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   @override
   Widget build(BuildContext context) {
     final dashboardState = ref.watch(dashboardStateProvider);
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
     final spacing = 14.mAp;
     final children = [
       ...dashboardState.dashboardWidgets
@@ -201,38 +204,143 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             padding: const EdgeInsets.all(16).copyWith(bottom: 88),
             child: Align(
               alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _maxGridWidth),
-                child: LayoutBuilder(
-                  builder: (_, constraints) {
-                    final columns = min(
-                      max(4 * ((constraints.maxWidth / 280).ceil()), 8),
-                      _maxCrossAxisCount,
-                    );
-                    return isEdit
-                        ? BackLayerScope(
-                            onBack: _handleExitEdit,
-                            child: SuperGrid(
-                              key: key,
-                              crossAxisCount: columns,
-                              crossAxisSpacing: spacing,
-                              mainAxisSpacing: spacing,
-                              children: children,
-                              onUpdate: () {
-                                _handleSave();
-                              },
-                            ),
-                          )
-                        : Grid(
-                            crossAxisCount: columns,
-                            crossAxisSpacing: spacing,
-                            mainAxisSpacing: spacing,
-                            children: children,
-                          );
-                  },
-                ),
+              child: Column(
+                children: [
+                  if (isMiuix && !isEdit) ...[
+                    const _MiuixCoreStatusCard(),
+                    SizedBox(height: spacing),
+                  ],
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: _maxGridWidth),
+                    child: LayoutBuilder(
+                      builder: (_, constraints) {
+                        final columns = min(
+                          max(4 * ((constraints.maxWidth / 280).ceil()), 8),
+                          _maxCrossAxisCount,
+                        );
+                        return isEdit
+                            ? BackLayerScope(
+                                onBack: _handleExitEdit,
+                                child: SuperGrid(
+                                  key: key,
+                                  crossAxisCount: columns,
+                                  crossAxisSpacing: spacing,
+                                  mainAxisSpacing: spacing,
+                                  children: children,
+                                  onUpdate: () {
+                                    _handleSave();
+                                  },
+                                ),
+                              )
+                            : Grid(
+                                crossAxisCount: columns,
+                                crossAxisSpacing: spacing,
+                                mainAxisSpacing: spacing,
+                                children: children,
+                              );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiuixCoreStatusCard extends ConsumerWidget {
+  const _MiuixCoreStatusCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isStart = ref.watch(isStartProvider);
+    final coreStatus = ref.watch(coreStatusProvider);
+    final status = isStart ? coreStatus : CoreStatus.disconnected;
+    final accent = switch (status) {
+      CoreStatus.connected => const Color(0xFF36C96B),
+      CoreStatus.connecting => context.colorScheme.primary,
+      CoreStatus.disconnected => context.colorScheme.error,
+    };
+    final statusLabel = switch (status) {
+      CoreStatus.connected => context.appLocalizations.connected,
+      CoreStatus.connecting => context.appLocalizations.connecting,
+      CoreStatus.disconnected => context.appLocalizations.disconnected,
+    };
+    final icon = switch (status) {
+      CoreStatus.connected => Icons.check_circle_outline_rounded,
+      CoreStatus.connecting => Icons.sync_rounded,
+      CoreStatus.disconnected => Icons.power_settings_new_rounded,
+    };
+    final background = Color.alphaBlend(
+      accent.withValues(
+        alpha: Theme.brightnessOf(context) == Brightness.dark ? 0.2 : 0.14,
+      ),
+      context.colorScheme.surfaceContainer,
+    );
+    final cardHeight = max(
+      144.0,
+      128 * MediaQuery.textScalerOf(context).scale(1),
+    );
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _maxGridWidth),
+      child: Material(
+        color: background,
+        clipBehavior: Clip.antiAlias,
+        shape: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(Radius.circular(28)),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          height: cardHeight,
+          child: Stack(
+            children: [
+              Positioned(
+                right: -18,
+                bottom: -26,
+                child: Icon(
+                  icon,
+                  size: 142,
+                  color: accent.withValues(alpha: 0.58),
+                ),
+              ),
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.appLocalizations.coreStatus,
+                        style: context.textTheme.titleSmall?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        statusLabel,
+                        style: context.textTheme.headlineSmall?.copyWith(
+                          color: context.colorScheme.onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (isStart)
+                        Text(
+                          utils.getTimeText(ref.watch(runTimeProvider)),
+                          style: context.textTheme.titleMedium?.copyWith(
+                            color: context.colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

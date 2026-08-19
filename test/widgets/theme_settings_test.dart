@@ -78,18 +78,28 @@ void main() {
     expect(container.read(themeSettingProvider).predictiveBack, false);
   });
 
-  testWidgets('interface style selector switches to Miuix-inspired style', (
+  testWidgets('interface style selector switches between both styles', (
     tester,
   ) async {
     await tester.pumpWidget(buildApp(const InterfaceStyleSelector()));
     await tester.pumpAndSettle();
-    final miuixLabel = AppLocalizations.of(
+    final localizations = AppLocalizations.of(
       tester.element(find.byType(InterfaceStyleSelector)),
-    ).miuixStyle;
+    );
 
     await tester.tap(findListTileByKey('interface-style-selector'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(miuixLabel));
+    await tester.tap(find.text(localizations.materialStyle));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(themeSettingProvider).interfaceStyle,
+      InterfaceStyle.material,
+    );
+
+    await tester.tap(findListTileByKey('interface-style-selector'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(localizations.miuixStyle));
     await tester.pumpAndSettle();
 
     expect(
