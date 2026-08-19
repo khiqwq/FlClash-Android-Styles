@@ -48,6 +48,20 @@ jobs:
           add-to-path: true
           link-to-sdk: true
 
+      - name: Setup development signing
+        env:
+          DEV_KEYSTORE: ${{ secrets.DEV_KEYSTORE }}
+          DEV_KEY_ALIAS: ${{ secrets.DEV_KEY_ALIAS }}
+          DEV_STORE_PASSWORD: ${{ secrets.DEV_STORE_PASSWORD }}
+          DEV_KEY_PASSWORD: ${{ secrets.DEV_KEY_PASSWORD }}
+        run: |
+          echo "$DEV_KEYSTORE" | base64 --decode > android/app/keystore.jks
+          {
+            echo "keyAlias=$DEV_KEY_ALIAS"
+            echo "storePassword=$DEV_STORE_PASSWORD"
+            echo "keyPassword=$DEV_KEY_PASSWORD"
+          } >> android/local.properties
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -72,11 +86,13 @@ jobs:
           test/widgets/scaffold_back_test.dart
           test/android_predictive_back_test.dart
           test/liquid_glass_shader_test.dart
+          test/android_dev_signing_test.dart
           --reporter expanded
 
       - name: Build release APK
         env:
           ANDROID_NDK: ${{ steps.ndk.outputs.ndk-path }}
+          DEV_BUILD: 'true'
         run: >-
           flutter build apk
           --release

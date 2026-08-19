@@ -23,6 +23,7 @@ val hasReleaseSigning = releaseStoreFile.exists() &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
     releaseKeyPassword != null
+val isDevBuild = System.getenv("DEV_BUILD")?.toBoolean() == true
 
 android {
     namespace = "com.follow.clash"
@@ -72,6 +73,8 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             } else {
                 signingConfig = signingConfigs.getByName("debug")
+            }
+            if (!hasReleaseSigning || isDevBuild) {
                 applicationIdSuffix = ".dev"
             }
 
