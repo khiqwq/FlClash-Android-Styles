@@ -15,5 +15,9 @@ void main() {
     expect(shader, contains('u_chromatic_aberration'));
     expect(effect, contains('ImageFilter.isShaderFilterSupported'));
     expect(effect, contains('ImageFilter.shader'));
+    expect(effect, contains('setFloat(0, widget.liquidSize!.width)'));
+    expect(effect, contains('setFloat(1, widget.liquidSize!.height)'));
+    expect(effect, contains('-(widget.liquidRefractionAmount'));
+    expect(shader, contains('sign(u_refraction_amount)'));
   });
 }

@@ -10,6 +10,13 @@ class AndroidGlassSurface extends StatefulWidget {
   final bool liquidGlass;
   final double liquidProgress;
   final Color? surfaceColor;
+  final Color? liquidAccentColor;
+  final double? liquidBlurSigma;
+  final double? liquidRefractionHeight;
+  final double? liquidRefractionAmount;
+  final double? liquidChromaticAberration;
+  final bool scaleLiquidBlurWithProgress;
+  final Size? liquidSize;
   final BorderRadius borderRadius;
   final OutlinedBorder? shape;
   final Widget child;
@@ -20,6 +27,13 @@ class AndroidGlassSurface extends StatefulWidget {
     required this.liquidGlass,
     this.liquidProgress = 1,
     this.surfaceColor,
+    this.liquidAccentColor,
+    this.liquidBlurSigma,
+    this.liquidRefractionHeight,
+    this.liquidRefractionAmount,
+    this.liquidChromaticAberration,
+    this.scaleLiquidBlurWithProgress = true,
+    this.liquidSize,
     this.borderRadius = BorderRadius.zero,
     this.shape,
     required this.child,
@@ -88,10 +102,13 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
 
   ui.ImageFilter _buildFilter() {
     final liquidProgress = widget.liquidProgress.clamp(0.0, 1.0);
+    final configuredBlurSigma =
+        widget.liquidBlurSigma ?? AndroidAppearanceTokens.liquidGlassBlurSigma;
     final blurSigma = widget.liquidGlass
         ? max(
             0.001,
-            AndroidAppearanceTokens.liquidGlassBlurSigma * (1 - liquidProgress),
+            configuredBlurSigma *
+                (widget.scaleLiquidBlurWithProgress ? 1 - liquidProgress : 1),
           )
         : AndroidAppearanceTokens.barBlurSigma;
     final blur = ui.ImageFilter.blur(
@@ -102,23 +119,34 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
     if (!widget.liquidGlass ||
         liquidProgress <= 0 ||
         !ui.ImageFilter.isShaderFilterSupported ||
-        _program == null) {
+        _program == null ||
+        widget.liquidSize == null ||
+        widget.liquidSize!.width <= 0 ||
+        widget.liquidSize!.height <= 0) {
       return blur;
     }
     final shader = _shader ??= _program!.fragmentShader();
     shader
+      ..setFloat(0, widget.liquidSize!.width)
+      ..setFloat(1, widget.liquidSize!.height)
       ..setFloat(2, widget.borderRadius.topLeft.x)
       ..setFloat(
         3,
-        AndroidAppearanceTokens.liquidGlassRefractionHeight * liquidProgress,
+        (widget.liquidRefractionHeight ??
+                AndroidAppearanceTokens.liquidGlassRefractionHeight) *
+            liquidProgress,
       )
       ..setFloat(
         4,
-        AndroidAppearanceTokens.liquidGlassRefractionAmount * liquidProgress,
+        -(widget.liquidRefractionAmount ??
+                AndroidAppearanceTokens.liquidGlassRefractionAmount) *
+            liquidProgress,
       )
       ..setFloat(
         5,
-        AndroidAppearanceTokens.liquidGlassChromaticAberration * liquidProgress,
+        (widget.liquidChromaticAberration ??
+                AndroidAppearanceTokens.liquidGlassChromaticAberration) *
+            liquidProgress,
       );
     return ui.ImageFilter.compose(
       outer: ui.ImageFilter.shader(shader),
@@ -138,6 +166,7 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
     }
     final colorScheme = Theme.of(context).colorScheme;
     final liquidProgress = widget.liquidProgress.clamp(0.0, 1.0);
+    final accentColor = widget.liquidAccentColor ?? Colors.transparent;
     final shape =
         widget.shape ??
         RoundedSuperellipseBorder(borderRadius: widget.borderRadius);
@@ -171,8 +200,9 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
                                 .liquidGlassHighlightOpacity *
                             liquidProgress,
                       ),
-                      colorScheme.primary.withValues(
+                      accentColor.withValues(
                         alpha:
+                            accentColor.a *
                             AndroidAppearanceTokens.liquidGlassAccentOpacity *
                             liquidProgress,
                       ),

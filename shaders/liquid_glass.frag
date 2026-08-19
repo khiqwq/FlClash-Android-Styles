@@ -70,7 +70,8 @@ void main() {
     )
   ));
   vec2 refracted_coordinate = coordinate + gradient * refraction;
-  vec2 dispersion = gradient * edge * u_chromatic_aberration;
+  vec2 dispersion =
+      gradient * edge * u_chromatic_aberration * sign(u_refraction_amount);
   vec4 center = texture(
     u_texture,
     texture_coordinate(refracted_coordinate)

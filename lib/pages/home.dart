@@ -285,8 +285,9 @@ class HomePage extends ConsumerWidget {
               );
               if (isFloating) {
                 final mediaQuery = MediaQuery.of(context);
-                final navigationBarHeight =
-                    appearance.isMiuix || useLiquidNavigation
+                final navigationBarHeight = useLiquidNavigation
+                    ? AndroidAppearanceTokens.liquidNavigationBarHeight
+                    : appearance.isMiuix
                     ? AndroidAppearanceTokens.miuixNavigationBarHeight
                     : AndroidAppearanceTokens.materialNavigationBarHeight;
                 final contentBottomPadding =
@@ -313,18 +314,15 @@ class HomePage extends ConsumerWidget {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      child: AnimatedVisibility.bottomNavigation(
-                        visible: true,
-                        child: SafeArea(
-                          top: false,
-                          child: MediaQuery.removePadding(
-                            removeTop: true,
-                            removeBottom: true,
-                            removeLeft: true,
-                            removeRight: true,
-                            context: context,
-                            child: effectiveBottomNavigationBar,
-                          ),
+                      child: SafeArea(
+                        top: false,
+                        child: MediaQuery.removePadding(
+                          removeTop: true,
+                          removeBottom: true,
+                          removeLeft: true,
+                          removeRight: true,
+                          context: context,
+                          child: effectiveBottomNavigationBar,
                         ),
                       ),
                     ),

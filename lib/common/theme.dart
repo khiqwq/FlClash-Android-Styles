@@ -10,6 +10,7 @@ abstract final class AndroidAppearanceTokens {
   static const double liquidGlassChromaticAberration = 0.75;
   static const double materialNavigationBarHeight = 80;
   static const double miuixNavigationBarHeight = 68;
+  static const double liquidNavigationBarHeight = 64;
   static const double miuixAppBarHeight = 92;
   static const double miuixComponentCornerRadius = 16;
   static const double miuixSectionCornerRadius = 16;

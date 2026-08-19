@@ -130,7 +130,7 @@ void main() {
     );
   });
 
-  testWidgets('floating liquid glass navigation is clipped and blurred', (
+  testWidgets('floating liquid glass navigation is layered and centered', (
     tester,
   ) async {
     final container = await pumpHome(
@@ -147,15 +147,30 @@ void main() {
     final surfaces = tester.widgetList<AndroidGlassSurface>(
       find.byType(AndroidGlassSurface),
     );
-    final track = surfaces.firstWhere((surface) => !surface.liquidGlass);
-    final thumb = surfaces.firstWhere((surface) => surface.liquidGlass);
+    final panel = surfaces.firstWhere(
+      (surface) => surface.liquidRefractionHeight == 24,
+    );
+    final thumb = surfaces.firstWhere(
+      (surface) => surface.liquidRefractionHeight == 5,
+    );
 
     expect(find.byType(LiquidToggleNavigationBar), findsOneWidget);
     expect(find.byType(MiuixBottomNavigationBar), findsNothing);
-    expect(track.blur, true);
+    expect(panel.liquidGlass, true);
+    expect(panel.liquidProgress, 1);
+    expect(panel.scaleLiquidBlurWithProgress, false);
+    expect(panel.liquidAccentColor, Colors.transparent);
     expect(thumb.liquidProgress, 0);
+    expect(thumb.liquidAccentColor, Colors.transparent);
     expect(find.byType(BackdropFilter), findsNWidgets(2));
     expect(find.byType(ClipPath), findsWidgets);
+    expect(
+      find.ancestor(
+        of: find.byType(LiquidToggleNavigationBar),
+        matching: find.byType(AnimatedVisibility),
+      ),
+      findsNothing,
+    );
     expect(
       AndroidAppearanceTokens.liquidGlassBlurSigma,
       lessThan(AndroidAppearanceTokens.barBlurSigma),
@@ -168,13 +183,22 @@ void main() {
       ),
       findsOneWidget,
     );
+    final barRect = tester.getRect(find.byType(LiquidToggleNavigationBar));
+    for (var index = 0; index < 2; index++) {
+      final itemCenter = tester.getCenter(
+        find.byKey(ValueKey('liquid-navigation-item-$index')),
+      );
+      final expectedCenter =
+          barRect.left + 4 + (barRect.width - 8) * (index + 0.5) / 2;
+      expect(itemCenter.dx, closeTo(expectedCenter, 0.01));
+    }
     final contentHasNavigationInset = find
         .ancestor(of: find.byType(PageView), matching: find.byType(MediaQuery))
         .evaluate()
         .map((element) => (element.widget as MediaQuery).data.padding.bottom)
         .any(
           (padding) =>
-              padding >= AndroidAppearanceTokens.miuixNavigationBarHeight,
+              padding >= AndroidAppearanceTokens.liquidNavigationBarHeight,
         );
     expect(contentHasNavigationInset, true);
 
@@ -186,6 +210,28 @@ void main() {
       ),
     );
     final gesture = await tester.startGesture(tester.getCenter(dragTarget));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 160));
+    final pressedPanelTransform = tester.widget<Transform>(
+      find.byKey(const ValueKey('liquid-toggle-panel-transform')),
+    );
+    final pressedThumbTransform = tester.widget<Transform>(
+      find.byKey(const ValueKey('liquid-toggle-thumb-transform')),
+    );
+    final pressedItemTransform = tester.widget<Transform>(
+      find.byKey(const ValueKey('liquid-navigation-item-content-0')),
+    );
+    expect(pressedPanelTransform.transform.storage[0], greaterThan(1));
+    expect(pressedThumbTransform.transform.storage[0], closeTo(1.5, 0.03));
+    expect(pressedThumbTransform.transform.storage[5], closeTo(1.5, 0.03));
+    expect(pressedItemTransform.transform.storage[0], closeTo(1.2, 0.015));
+    expect(
+      find.ancestor(
+        of: find.byKey(const ValueKey('liquid-toggle-thumb-transform')),
+        matching: find.byKey(const ValueKey('liquid-toggle-panel-transform')),
+      ),
+      findsNothing,
+    );
     await gesture.moveBy(const Offset(40, 0));
     await tester.pump();
     await gesture.moveBy(const Offset(40, 0));
@@ -193,18 +239,32 @@ void main() {
     expect(
       tester
           .widgetList<AndroidGlassSurface>(find.byType(AndroidGlassSurface))
-          .firstWhere((surface) => surface.liquidGlass)
+          .firstWhere((surface) => surface.liquidRefractionHeight == 5)
           .liquidProgress,
       greaterThan(0),
     );
     await gesture.up();
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(
+      tester
+          .widget<Transform>(
+            find.byKey(const ValueKey('liquid-toggle-thumb-transform')),
+          )
+          .transform
+          .storage[0],
+      greaterThan(1.1),
+    );
     await tester.pumpAndSettle();
 
     expect(container.read(currentPageLabelProvider), PageLabel.tools);
     final thumbTransform = tester.widget<Transform>(
       find.byKey(const ValueKey('liquid-toggle-thumb-transform')),
     );
+    final panelTransform = tester.widget<Transform>(
+      find.byKey(const ValueKey('liquid-toggle-panel-transform')),
+    );
     expect(thumbTransform.transformHitTests, false);
+    expect(panelTransform.transform.storage[0], closeTo(1, 0.001));
     expect(thumbTransform.transform.storage[0], closeTo(1, 0.001));
     expect(thumbTransform.transform.storage[5], closeTo(1, 0.001));
   });
@@ -250,6 +310,73 @@ void main() {
 
     final indicator = tester.widget<AnimatedAlign>(find.byType(AnimatedAlign));
     expect(indicator.alignment, const AlignmentDirectional(-1, 0));
+  });
+
+  testWidgets('liquid indicator drag follows RTL navigation order', (
+    tester,
+  ) async {
+    var selectedIndex = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          extensions: const [
+            AppearanceTheme(
+              isAndroid: true,
+              floatingBottomBar: true,
+              liquidGlass: true,
+            ),
+          ],
+        ),
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Material(
+            child: Center(
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return SizedBox(
+                    width: 240,
+                    child: LiquidToggleNavigationBar(
+                      items: [
+                        NavigationItem(
+                          icon: const Icon(Icons.home),
+                          label: PageLabel.dashboard,
+                          builder: (_) => const SizedBox.shrink(),
+                        ),
+                        NavigationItem(
+                          icon: const Icon(Icons.settings),
+                          label: PageLabel.tools,
+                          builder: (_) => const SizedBox.shrink(),
+                        ),
+                      ],
+                      selectedIndex: selectedIndex,
+                      onSelected: (index) {
+                        setState(() {
+                          selectedIndex = index;
+                        });
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final indicator = find.byKey(
+      const ValueKey('liquid-toggle-thumb-transform'),
+    );
+    final gesture = await tester.startGesture(tester.getCenter(indicator));
+    await gesture.moveBy(const Offset(-30, 0));
+    await tester.pump();
+    await gesture.moveBy(const Offset(-90, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(selectedIndex, 1);
   });
 
   testWidgets('Material floating mode keeps Material navigation', (
