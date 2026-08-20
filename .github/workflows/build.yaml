@@ -202,14 +202,22 @@ jobs:
 
       - name: Verify Android APK identity
         if: startsWith(matrix.platform,'android')
+        env:
+          EXPECTED_PACKAGE: com.follow.clash
+          EXPECTED_CERT_SHA256: 2859e236b6c1c6073773752678c52e8e902a9503ae9beed6729ca999c376841c
         run: |
           set -euo pipefail
           build_tools=$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-          while IFS= read -r apk; do
+          mapfile -t apks < <(find dist -name '*.apk' -print)
+          test "${#apks[@]}" -gt 0
+          for apk in "${apks[@]}"; do
             package=$($build_tools/aapt2 dump packagename "$apk" | tr -d '\r')
-            test "$package" = "com.follow.clash"
-            $build_tools/apksigner verify --verbose --print-certs "$apk"
-          done < <(find dist -name '*.apk' -print)
+            test "$package" = "$EXPECTED_PACKAGE"
+            verify_output=$($build_tools/apksigner verify --verbose --print-certs "$apk")
+            printf '%s\n' "$verify_output"
+            cert=$(sed -n -e 's/^V2 Signer: certificate SHA-256 digest: //p' -e 's/^Signer #1 certificate SHA-256 digest: //p' <<< "$verify_output" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
+            test "$cert" = "$EXPECTED_CERT_SHA256"
+          done
 
       - name: Upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -217,6 +225,7 @@ jobs:
           name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./dist
           overwrite: true
+          if-no-files-found: error
 
   changelog:
     if: ${{ !contains(github.ref, '-') }}
