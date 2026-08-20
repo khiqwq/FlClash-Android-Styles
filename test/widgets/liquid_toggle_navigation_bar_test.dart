@@ -635,6 +635,48 @@ void main() {
     expect(contrast, greaterThanOrEqualTo(4.5));
   });
 
+  testWidgets('selected Liquid labels keep contrast in light and dark', (
+    tester,
+  ) async {
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            brightness: brightness,
+            colorScheme: miuixDefaultColorScheme(brightness),
+            extensions: const [
+              AppearanceTheme(
+                isAndroid: true,
+                floatingBottomBar: true,
+                liquidGlass: true,
+              ),
+            ],
+          ),
+          home: Center(
+            child: SizedBox(
+              width: 240,
+              child: LiquidToggleNavigationBar(
+                items: _items(),
+                selectedIndex: 0,
+                onSelected: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final label = tester.widget<Text>(
+        find.byKey(const ValueKey('liquid-accent-label-0')),
+      );
+      final foreground = label.style!.color!;
+      final lighter = foreground.computeLuminance() + 0.05;
+      final darker = Colors.white.computeLuminance() + 0.05;
+      final contrast = lighter > darker ? lighter / darker : darker / lighter;
+      expect(contrast, greaterThanOrEqualTo(4.5));
+    }
+  });
+
   testWidgets('thumb backdrop captures and transforms the complete track', (
     tester,
   ) async {

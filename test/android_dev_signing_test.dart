@@ -37,6 +37,26 @@ void main() {
     );
   });
 
+  test('all workflow actions use immutable commit SHAs', () {
+    for (final path in <String>[
+      '.github/workflows/android-interface-build.yml',
+      '.github/workflows/build.yaml',
+    ]) {
+      final workflow = File(path).readAsStringSync();
+      final actionMatches = RegExp(
+        r'uses:\s+[^@\s]+@([^\s#]+)',
+      ).allMatches(workflow);
+      expect(actionMatches, isNotEmpty, reason: path);
+      for (final match in actionMatches) {
+        expect(
+          match.group(1),
+          matches(RegExp(r'^[0-9a-f]{40}$')),
+          reason: '$path: ${match.group(0)}',
+        );
+      }
+    }
+  });
+
   test('GitHub preview builds pin tools and fixed development signing', () {
     final workflow = File(
       '.github/workflows/android-interface-build.yml',
