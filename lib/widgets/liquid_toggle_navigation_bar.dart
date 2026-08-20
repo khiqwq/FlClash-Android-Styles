@@ -147,6 +147,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
         _awaitingExternalIndex = null;
         return;
       }
+      if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
+        return;
+      }
       _awaitingExternalIndex = null;
     }
     if (selectedIndex == _committedIndex &&
