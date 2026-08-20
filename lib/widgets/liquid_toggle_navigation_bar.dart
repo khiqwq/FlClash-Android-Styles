@@ -4,11 +4,11 @@
 
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/models/common.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:intl/intl.dart' as intl;
@@ -36,61 +36,49 @@ class LiquidToggleNavigationBar extends StatefulWidget {
 
 class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     with TickerProviderStateMixin {
-  static const double _pressedScale = 78 / 56;
+  static const double _visibilityThreshold = 0.001;
+  static const double _pressedScale = 1.5;
+  static const double _dragWidth = 20;
+  static const double _trackPadding = 2;
 
   late final AnimationController _positionController;
-  late final AnimationController _pressController;
-  late final AnimationController _indicatorScaleXController;
-  late final AnimationController _indicatorScaleYController;
-  late final AnimationController _panelOffsetController;
   late final AnimationController _velocityController;
+  late final AnimationController _pressController;
+  late final AnimationController _scaleXController;
+  late final AnimationController _scaleYController;
   late final Listenable _animation;
-  late final SpringDescription _positionSpring;
-  late final SpringDescription _pressSpring;
-  late final SpringDescription _indicatorScaleXSpring;
-  late final SpringDescription _indicatorScaleYSpring;
-  late final SpringDescription _panelOffsetSpring;
+  late final SpringDescription _valueSpring;
   late final SpringDescription _velocitySpring;
+  late final SpringDescription _pressSpring;
+  late final SpringDescription _scaleXSpring;
+  late final SpringDescription _scaleYSpring;
+
+  final Stopwatch _velocityClock = Stopwatch();
 
   double _cellWidth = 0;
+  double _fraction = 0;
+  double _positionTarget = 0;
+  double _lastVelocityValue = 0;
+  Duration _lastVelocityTime = Duration.zero;
   int _committedIndex = 0;
   int? _deferredExternalIndex;
   int? _awaitingExternalIndex;
   int? _activePointer;
-  Offset? _pointerStart;
-  double _pointerStartLogical = 0;
-  double _dragBasePosition = 0;
-  bool _hasDragged = false;
-  VelocityTracker? _velocityTracker;
-  int _interactionEpoch = 0;
+  int? _directTapIndex;
+  bool _didDrag = false;
+  bool _activeIsIndicator = false;
+  bool _tracksValueVelocity = false;
+  int _releaseEpoch = 0;
 
   @override
   void initState() {
     super.initState();
     _committedIndex = _clampIndex(widget.selectedIndex);
-    _positionSpring = SpringDescription.withDampingRatio(
+    _fraction = _committedIndex.toDouble();
+    _positionTarget = _fraction;
+    _valueSpring = SpringDescription.withDampingRatio(
       mass: 1,
       stiffness: 1000,
-      ratio: 1,
-    );
-    _pressSpring = SpringDescription.withDampingRatio(
-      mass: 1,
-      stiffness: 1000,
-      ratio: 1,
-    );
-    _indicatorScaleXSpring = SpringDescription.withDampingRatio(
-      mass: 1,
-      stiffness: 250,
-      ratio: 0.6,
-    );
-    _indicatorScaleYSpring = SpringDescription.withDampingRatio(
-      mass: 1,
-      stiffness: 250,
-      ratio: 0.7,
-    );
-    _panelOffsetSpring = SpringDescription.withDampingRatio(
-      mass: 1,
-      stiffness: 300,
       ratio: 1,
     );
     _velocitySpring = SpringDescription.withDampingRatio(
@@ -98,28 +86,35 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
       stiffness: 300,
       ratio: 0.5,
     );
+    _pressSpring = SpringDescription.withDampingRatio(
+      mass: 1,
+      stiffness: 1000,
+      ratio: 1,
+    );
+    _scaleXSpring = SpringDescription.withDampingRatio(
+      mass: 1,
+      stiffness: 250,
+      ratio: 0.6,
+    );
+    _scaleYSpring = SpringDescription.withDampingRatio(
+      mass: 1,
+      stiffness: 250,
+      ratio: 0.7,
+    );
     _positionController = AnimationController.unbounded(
       vsync: this,
-      value: _committedIndex.toDouble(),
-    );
-    _pressController = AnimationController(vsync: this);
-    _indicatorScaleXController = AnimationController.unbounded(
-      vsync: this,
-      value: 1,
-    );
-    _indicatorScaleYController = AnimationController.unbounded(
-      vsync: this,
-      value: 1,
-    );
-    _panelOffsetController = AnimationController.unbounded(vsync: this);
+      value: _fraction,
+    )..addListener(_updateVelocity);
     _velocityController = AnimationController.unbounded(vsync: this);
+    _pressController = AnimationController(vsync: this);
+    _scaleXController = AnimationController.unbounded(vsync: this, value: 1);
+    _scaleYController = AnimationController.unbounded(vsync: this, value: 1);
     _animation = Listenable.merge(<Listenable>[
       _positionController,
-      _pressController,
-      _indicatorScaleXController,
-      _indicatorScaleYController,
-      _panelOffsetController,
       _velocityController,
+      _pressController,
+      _scaleXController,
+      _scaleYController,
     ]);
   }
 
@@ -136,9 +131,6 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
         _awaitingExternalIndex = null;
         return;
       }
-      if (oldWidget.items.length == widget.items.length) {
-        return;
-      }
       _awaitingExternalIndex = null;
     }
     if (selectedIndex == _committedIndex &&
@@ -147,19 +139,23 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     }
     _committedIndex = selectedIndex;
     _deferredExternalIndex = null;
-    _animatePosition(selectedIndex.toDouble());
+    _fraction = selectedIndex.toDouble();
+    _animateToValue(_fraction);
   }
 
   @override
   void dispose() {
-    _positionController.dispose();
-    _pressController.dispose();
-    _indicatorScaleXController.dispose();
-    _indicatorScaleYController.dispose();
-    _panelOffsetController.dispose();
+    _positionController
+      ..removeListener(_updateVelocity)
+      ..dispose();
     _velocityController.dispose();
+    _pressController.dispose();
+    _scaleXController.dispose();
+    _scaleYController.dispose();
     super.dispose();
   }
+
+  double get _valueRange => max(widget.items.length - 1, 1).toDouble();
 
   int _clampIndex(int index) {
     if (widget.items.isEmpty) {
@@ -168,211 +164,312 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     return index.clamp(0, widget.items.length - 1);
   }
 
+  double _clampValue(double value) {
+    return value.clamp(0, max(widget.items.length - 1, 0).toDouble());
+  }
+
   TickerFuture _springTo(
     AnimationController controller,
     SpringDescription spring,
-    double target, {
+    double target,
+    double threshold, {
     double velocity = 0,
   }) {
-    return controller.animateWith(
-      SpringSimulation(spring, controller.value, target, velocity),
+    final simulation = SpringSimulation(
+      spring,
+      controller.value,
+      target,
+      velocity,
+    )..tolerance = Tolerance(distance: threshold, velocity: threshold);
+    return controller.animateWith(simulation);
+  }
+
+  void _startVelocityTracking() {
+    if (_tracksValueVelocity) {
+      return;
+    }
+    _tracksValueVelocity = true;
+    _velocityClock
+      ..reset()
+      ..start();
+    _lastVelocityTime = Duration.zero;
+    _lastVelocityValue = _positionController.value;
+  }
+
+  void _stopVelocityTracking() {
+    _tracksValueVelocity = false;
+    _velocityClock.stop();
+  }
+
+  void _updateVelocity() {
+    if (!_tracksValueVelocity) {
+      return;
+    }
+
+    final now = _velocityClock.elapsed;
+    final elapsed =
+        (now - _lastVelocityTime).inMicroseconds /
+        Duration.microsecondsPerSecond;
+    if (elapsed <= 0) {
+      return;
+    }
+    final value = _positionController.value;
+    final targetVelocity = (value - _lastVelocityValue) / elapsed / _valueRange;
+    _lastVelocityValue = value;
+    _lastVelocityTime = now;
+    _springTo(
+      _velocityController,
+      _velocitySpring,
+      targetVelocity,
+      _visibilityThreshold * 10,
     );
   }
 
-  TickerFuture _animatePosition(double target, [double velocity = 0]) {
-    _interactionEpoch++;
+  TickerFuture _animatePosition(double target, {required bool trackVelocity}) {
+    _positionTarget = _clampValue(target);
+    if (trackVelocity) {
+      _startVelocityTracking();
+    } else {
+      _stopVelocityTracking();
+    }
     return _springTo(
       _positionController,
-      _positionSpring,
-      target,
-      velocity: velocity,
+      _valueSpring,
+      _positionTarget,
+      _visibilityThreshold,
     );
+  }
+
+  void _updateValue(double value) {
+    _fraction = _clampValue(value);
+    _animatePosition(_fraction, trackVelocity: true);
+  }
+
+  void _animateToValue(double value) {
+    _beginPress();
+    _fraction = _clampValue(value);
+    _animatePosition(_fraction, trackVelocity: false);
+    if (_velocityController.value != 0) {
+      _springTo(
+        _velocityController,
+        _velocitySpring,
+        0,
+        _visibilityThreshold * 10,
+      );
+    }
+    _scheduleRelease();
   }
 
   void _beginPress() {
-    _interactionEpoch++;
-    _pressController.value = max(_pressController.value, 0.08);
-    _springTo(_pressController, _pressSpring, 1);
+    _releaseEpoch++;
+    _springTo(_pressController, _pressSpring, 1, _visibilityThreshold);
     _springTo(
-      _indicatorScaleXController,
-      _indicatorScaleXSpring,
+      _scaleXController,
+      _scaleXSpring,
       _pressedScale,
+      _visibilityThreshold,
     );
     _springTo(
-      _indicatorScaleYController,
-      _indicatorScaleYSpring,
+      _scaleYController,
+      _scaleYSpring,
       _pressedScale,
+      _visibilityThreshold,
     );
   }
 
   void _releasePress() {
-    _springTo(_pressController, _pressSpring, 0);
-    _springTo(_indicatorScaleXController, _indicatorScaleXSpring, 1);
-    _springTo(_indicatorScaleYController, _indicatorScaleYSpring, 1);
+    _springTo(_pressController, _pressSpring, 0, _visibilityThreshold);
+    _springTo(_scaleXController, _scaleXSpring, 1, _visibilityThreshold);
+    _springTo(_scaleYController, _scaleYSpring, 1, _visibilityThreshold);
   }
 
-  void _scheduleRelease(double target) {
-    final epoch = _interactionEpoch;
-    unawaited(_releasePressNearTarget(target, epoch));
+  void _scheduleRelease() {
+    final epoch = ++_releaseEpoch;
+    unawaited(_releaseNearTarget(epoch));
   }
 
-  Future<void> _releasePressNearTarget(double target, int epoch) async {
+  Future<void> _releaseNearTarget(int epoch) async {
     await WidgetsBinding.instance.endOfFrame;
-    final valueRange = max(widget.items.length - 1, 1).toDouble();
-    final threshold = valueRange * 0.025;
+    final threshold = _valueRange * 0.025;
     while (mounted &&
-        epoch == _interactionEpoch &&
+        epoch == _releaseEpoch &&
         _activePointer == null &&
-        (_positionController.value - target).abs() >= threshold) {
+        (_positionController.value - _positionTarget).abs() >= threshold) {
       await WidgetsBinding.instance.endOfFrame;
     }
-    if (mounted && epoch == _interactionEpoch && _activePointer == null) {
+    if (mounted && epoch == _releaseEpoch && _activePointer == null) {
       _releasePress();
     }
   }
 
-  void _settleSecondaryMotion() {
-    _springTo(_panelOffsetController, _panelOffsetSpring, 0);
-    _springTo(_velocityController, _velocitySpring, 0);
-  }
-
-  double _logicalPosition(double physicalX, TextDirection direction) {
-    if (_cellWidth <= 0 || widget.items.isEmpty) {
-      return _committedIndex.toDouble();
+  Rect _visibleIndicatorRect() {
+    final size = context.size;
+    if (size == null || _cellWidth <= 0) {
+      return Rect.zero;
     }
-    final physicalPosition = (physicalX - 4) / _cellWidth - 0.5;
-    if (direction == TextDirection.ltr) {
-      return physicalPosition;
-    }
-    return widget.items.length - 1 - physicalPosition;
-  }
-
-  double _directionFactor(TextDirection direction) {
-    return direction == TextDirection.ltr ? 1 : -1;
+    final maxPosition = max(widget.items.length - 1, 0).toDouble();
+    final position = _positionController.value.clamp(0.0, maxPosition);
+    final velocity = _velocityController.value / 50;
+    final scaleX =
+        _scaleXController.value / (1 - (velocity * 0.75).clamp(-0.2, 0.2));
+    final scaleY =
+        _scaleYController.value * (1 - (velocity * 0.25).clamp(-0.2, 0.2));
+    final start = _trackPadding + position * _cellWidth;
+    final direction = Directionality.of(context);
+    final left = direction == TextDirection.ltr
+        ? start
+        : size.width - start - _cellWidth;
+    final height = size.height - _trackPadding * 2;
+    final width = _cellWidth * scaleX.abs();
+    final scaledHeight = height * scaleY.abs();
+    return Rect.fromLTWH(
+      left + (_cellWidth - width) / 2,
+      _trackPadding + (height - scaledHeight) / 2,
+      width,
+      scaledHeight,
+    );
   }
 
   void _handlePointerDown(PointerDownEvent event) {
-    if (_activePointer != null || widget.items.isEmpty || _cellWidth <= 0) {
+    if (_activePointer != null || widget.items.isEmpty) {
       return;
     }
     final direction = Directionality.of(context);
-    final pointerLogical = _logicalPosition(event.localPosition.dx, direction);
-    final target = _clampIndex(pointerLogical.round());
+    final physicalPosition =
+        (event.localPosition.dx - _trackPadding) / _cellWidth - 0.5;
+    final logicalPosition = direction == TextDirection.ltr
+        ? physicalPosition
+        : widget.items.length - 1 - physicalPosition;
+    final target = _clampIndex(logicalPosition.round());
     _activePointer = event.pointer;
-    _pointerStart = event.localPosition;
-    _pointerStartLogical = pointerLogical;
-    _dragBasePosition = target.toDouble();
-    _hasDragged = false;
-    _velocityTracker = VelocityTracker.withKind(event.kind)
-      ..addPosition(event.timeStamp, event.position);
+    _directTapIndex = target;
+    _didDrag = false;
+    _activeIsIndicator = _visibleIndicatorRect().contains(event.localPosition);
+    if (!_activeIsIndicator) {
+      return;
+    }
+    _stopVelocityTracking();
     _beginPress();
-    _animatePosition(target.toDouble());
   }
 
   void _handlePointerMove(PointerMoveEvent event) {
-    if (_activePointer != event.pointer || _cellWidth <= 0) {
+    if (_activePointer != event.pointer) {
       return;
     }
-    final direction = Directionality.of(context);
-    _velocityTracker?.addPosition(event.timeStamp, event.position);
-    final currentLogical = _logicalPosition(event.localPosition.dx, direction);
-    final rawPosition =
-        _dragBasePosition + currentLogical - _pointerStartLogical;
-    final maxPosition = max(widget.items.length - 1, 0).toDouble();
-    final clampedPosition = rawPosition.clamp(0.0, maxPosition);
-    _positionController
-      ..stop()
-      ..value = clampedPosition;
-    _panelOffsetController
-      ..stop()
-      ..value += event.delta.dx;
-    final velocity = _velocityTracker?.getVelocity().pixelsPerSecond.dx ?? 0;
-    final valueRange = max(widget.items.length - 1, 1);
-    _velocityController
-      ..stop()
-      ..value =
-          (velocity /
-                  max(_cellWidth, 1) /
-                  valueRange *
-                  _directionFactor(direction))
-              .clamp(-12, 12);
-    if (!_hasDragged &&
-        (event.localPosition - (_pointerStart ?? event.localPosition))
-                .distance >=
-            6) {
-      _hasDragged = true;
+    if (!_activeIsIndicator) {
+      if (event.delta.distance != 0) {
+        _didDrag = true;
+      }
+      return;
     }
+    if (event.delta.dx != 0) {
+      _didDrag = true;
+    }
+    final direction = Directionality.of(context);
+    final delta =
+        event.delta.dx / _dragWidth * (direction == TextDirection.ltr ? 1 : -1);
+    _updateValue(_fraction + delta);
   }
 
   void _handlePointerUp(PointerUpEvent event) {
     if (_activePointer != event.pointer) {
       return;
     }
-    _velocityTracker?.addPosition(event.timeStamp, event.position);
-    final position = _hasDragged
-        ? _positionController.value
-        : _dragBasePosition;
-    final target = _clampIndex(position.round());
-    _finishInteraction(target, velocity: 0);
+    _finishIndicatorInteraction(canceled: false);
   }
 
   void _handlePointerCancel(PointerCancelEvent event) {
     if (_activePointer != event.pointer) {
       return;
     }
-    _activePointer = null;
-    _pointerStart = null;
-    _velocityTracker = null;
-    _hasDragged = false;
-    _awaitingExternalIndex = null;
-    final deferredIndex = _deferredExternalIndex;
-    _deferredExternalIndex = null;
-    if (deferredIndex != null) {
-      _committedIndex = deferredIndex;
-    }
-    final target = _committedIndex.toDouble();
-    _animatePosition(target);
-    _settleSecondaryMotion();
-    _scheduleRelease(target);
+    _finishIndicatorInteraction(canceled: true);
   }
 
-  void _finishInteraction(int target, {required double velocity}) {
+  void _finishIndicatorInteraction({required bool canceled}) {
     _activePointer = null;
-    _pointerStart = null;
-    _velocityTracker = null;
-    _hasDragged = false;
+    final activeIsIndicator = _activeIsIndicator;
+    final directTapIndex = _directTapIndex;
+    _activeIsIndicator = false;
+    _directTapIndex = null;
+    if (!activeIsIndicator) {
+      final didDrag = _didDrag;
+      _didDrag = false;
+      final deferredIndex = _deferredExternalIndex;
+      _deferredExternalIndex = null;
+      if (canceled) {
+        if (deferredIndex != null) {
+          _applyExternalSelection(deferredIndex);
+        }
+        return;
+      }
+      if (deferredIndex != null && directTapIndex == _committedIndex) {
+        _applyExternalSelection(deferredIndex);
+        return;
+      }
+      if (!didDrag && directTapIndex != null) {
+        _activateItem(directTapIndex);
+        return;
+      }
+      if (deferredIndex != null) {
+        _applyExternalSelection(deferredIndex);
+      }
+      return;
+    }
+    final didDrag = _didDrag;
+    _didDrag = false;
+    final deferredIndex = _deferredExternalIndex;
     _deferredExternalIndex = null;
+    if (!didDrag && deferredIndex != null) {
+      _committedIndex = deferredIndex;
+      _awaitingExternalIndex = null;
+      _fraction = deferredIndex.toDouble();
+      _animatePosition(_fraction, trackVelocity: false);
+      _scheduleRelease();
+      return;
+    }
+    if (!didDrag &&
+        directTapIndex != null &&
+        directTapIndex != _committedIndex) {
+      _activateItem(directTapIndex);
+      return;
+    }
+    final target = didDrag ? _clampIndex(_fraction.round()) : _committedIndex;
     final changed = target != _committedIndex;
     _committedIndex = target;
     _awaitingExternalIndex = changed ? target : null;
-    final targetValue = target.toDouble();
-    _animatePosition(targetValue, velocity);
-    _settleSecondaryMotion();
+    _fraction = target.toDouble();
+    if (didDrag) {
+      _updateValue(_fraction);
+    } else {
+      _animatePosition(_fraction, trackVelocity: false);
+    }
     if (changed) {
       widget.onSelected(target);
     }
-    _scheduleRelease(targetValue);
+    _scheduleRelease();
+  }
+
+  void _applyExternalSelection(int index) {
+    final target = _clampIndex(index);
+    _committedIndex = target;
+    _awaitingExternalIndex = null;
+    _fraction = target.toDouble();
+    _animateToValue(_fraction);
   }
 
   void _activateItem(int index) {
-    final target = _clampIndex(index);
     if (_activePointer != null) {
-      if (_hasDragged) {
-        return;
-      }
-      _activePointer = null;
-      _pointerStart = null;
-      _velocityTracker = null;
-      _hasDragged = false;
-      _deferredExternalIndex = null;
-      _finishInteraction(target, velocity: 0);
       return;
     }
-    if (_committedIndex == target) {
-      return;
+    final target = _clampIndex(index);
+    final changed = target != _committedIndex;
+    _committedIndex = target;
+    _awaitingExternalIndex = changed ? target : null;
+    _fraction = target.toDouble();
+    _animateToValue(_fraction);
+    if (changed) {
+      widget.onSelected(target);
     }
-    _beginPress();
-    _finishInteraction(target, velocity: 0);
   }
 
   @override
@@ -381,17 +478,16 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
       return const SizedBox.shrink();
     }
     final isDark = Theme.brightnessOf(context) == Brightness.dark;
-    final panelColor = isDark
-        ? const Color(0xFF242424).withValues(alpha: 0.4)
-        : Colors.white.withValues(alpha: 0.4);
-    final panelRadius = BorderRadius.circular(32);
-    final indicatorRadius = BorderRadius.circular(28);
+    final trackColor = isDark
+        ? const Color(0xFF787880).withValues(alpha: 0.36)
+        : const Color(0xFF787878).withValues(alpha: 0.2);
     return SizedBox(
       key: const ValueKey('liquid-toggle-navigation'),
       height: AndroidAppearanceTokens.liquidNavigationBarHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          _cellWidth = (constraints.maxWidth - 8) / widget.items.length;
+          _cellWidth =
+              (constraints.maxWidth - _trackPadding * 2) / widget.items.length;
           return AnimatedBuilder(
             animation: _animation,
             builder: (context, _) {
@@ -400,78 +496,29 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                 0.0,
                 maxPosition,
               );
-              final pressProgress = _pressController.value.clamp(0.0, 1.0);
-              final panelScale =
-                  1 + 16 / max(constraints.maxWidth, 1) * pressProgress;
-              final panelFraction =
-                  (_panelOffsetController.value / max(constraints.maxWidth, 1))
-                      .clamp(-1.0, 1.0);
-              final panelOffset =
-                  4 *
-                  panelFraction.sign *
-                  Curves.easeOut.transform(panelFraction.abs());
-              final logicalVelocity = _velocityController.value.clamp(
-                -12.0,
-                12.0,
-              );
-              final velocity = logicalVelocity / 10;
+              final progress = _pressController.value.clamp(0.0, 1.0);
+              final velocity = _velocityController.value / 50;
               final scaleX =
-                  _indicatorScaleXController.value /
+                  _scaleXController.value /
                   (1 - (velocity * 0.75).clamp(-0.2, 0.2));
               final scaleY =
-                  _indicatorScaleYController.value *
+                  _scaleYController.value *
                   (1 - (velocity * 0.25).clamp(-0.2, 0.2));
-              final indicatorStart = 4 + position * _cellWidth;
+              final trackScaleX = ui.lerpDouble(2 / 3, 0.75, progress)!;
+              final trackScaleY = ui.lerpDouble(0, 0.75, progress)!;
+              final indicatorStart = _trackPadding + position * _cellWidth;
+              final indicatorHeight = constraints.maxHeight - _trackPadding * 2;
               final direction = Directionality.of(context);
-              final physicalIndicatorCenter = switch (direction) {
-                TextDirection.ltr =>
-                  4 + (position + 0.5) * _cellWidth + panelOffset,
-                TextDirection.rtl =>
-                  constraints.maxWidth -
-                      4 -
-                      (position + 0.5) * _cellWidth +
-                      panelOffset,
-              };
-              const highlightAlignment = Alignment(0, -0.25);
-              final panelHighlightAlignment = Alignment(
-                (physicalIndicatorCenter / max(constraints.maxWidth, 1) * 2 - 1)
-                    .clamp(-1.0, 1.0),
-                -0.25,
-              );
-              final indicatorColor = Color.lerp(
-                isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.black.withValues(alpha: 0.1),
-                Colors.black.withValues(alpha: 0.03),
-                pressProgress,
-              )!;
-              final contentLayer = Positioned.fill(
-                key: const ValueKey('liquid-glass-content-layer'),
-                child: Transform.translate(
-                  offset: Offset(panelOffset, 0),
-                  transformHitTests: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Row(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < widget.items.length;
-                          index++
-                        )
-                          Expanded(
-                            key: ValueKey('liquid-navigation-item-$index'),
-                            child: _LiquidNavigationItem(
-                              index: index,
-                              item: widget.items[index],
-                              selected: index == _committedIndex,
-                              onPressed: () => _activateItem(index),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+              final indicatorLeft = direction == TextDirection.ltr
+                  ? indicatorStart
+                  : constraints.maxWidth - indicatorStart - _cellWidth;
+              final visibleWidth = _cellWidth * scaleX.abs();
+              final visibleHeight = indicatorHeight * scaleY.abs();
+              final indicatorExclusion = Rect.fromLTWH(
+                indicatorLeft + (_cellWidth - visibleWidth) / 2,
+                _trackPadding + (indicatorHeight - visibleHeight) / 2,
+                visibleWidth,
+                visibleHeight,
               );
               return Listener(
                 behavior: HitTestBehavior.opaque,
@@ -480,165 +527,177 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                 onPointerUp: _handlePointerUp,
                 onPointerCancel: _handlePointerCancel,
                 child: Stack(
+                  alignment: AlignmentDirectional.centerStart,
                   clipBehavior: Clip.none,
                   children: [
-                    Positioned.fill(
-                      key: const ValueKey('liquid-glass-panel-layer'),
-                      child: Transform.translate(
-                        key: const ValueKey('liquid-toggle-panel-offset'),
-                        offset: Offset(panelOffset, 0),
+                    const SizedBox.shrink(),
+                    PositionedDirectional(
+                      key: const ValueKey('liquid-glass-indicator-layer'),
+                      start: indicatorStart,
+                      top: _trackPadding,
+                      width: max(_cellWidth, 1),
+                      height: max(indicatorHeight, 1),
+                      child: Transform(
+                        key: const ValueKey('liquid-toggle-thumb-transform'),
+                        alignment: Alignment.center,
+                        transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
                         transformHitTests: false,
-                        child: Transform.scale(
-                          key: const ValueKey('liquid-toggle-panel-transform'),
-                          scale: panelScale,
-                          transformHitTests: false,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              borderRadius: panelRadius,
-                              boxShadow: <BoxShadow>[
-                                BoxShadow(
-                                  color: Colors.black.withValues(
-                                    alpha: isDark ? 0.2 : 0.1,
+                        child: CustomPaint(
+                          child: AndroidGlassSurface(
+                            blur: false,
+                            liquidGlass: true,
+                            liquidProgress: progress,
+                            liquidAccentColor: Colors.transparent,
+                            liquidBlurSigma: 8 * (1 - progress),
+                            liquidRefractionHeight: 5 * progress,
+                            liquidRefractionAmount: 10 * progress,
+                            liquidChromaticAberration: 1,
+                            liquidDepthEffect: 0,
+                            liquidSamplePadding: 0,
+                            scaleLiquidBlurWithProgress: false,
+                            showLiquidRim: false,
+                            surfaceColor: Colors.white.withValues(
+                              alpha: 1 - progress,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              indicatorHeight / 2,
+                            ),
+                            shape: const StadiumBorder(),
+                            liquidBackdropLayer: Transform.scale(
+                              scaleX: trackScaleX,
+                              scaleY: trackScaleY,
+                              child: ColoredBox(color: trackColor),
+                            ),
+                            child: Stack(
+                              key: const ValueKey(
+                                'liquid-glass-accent-content-layer',
+                              ),
+                              fit: StackFit.expand,
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < widget.items.length;
+                                  index++
+                                )
+                                  IgnorePointer(
+                                    child: Opacity(
+                                      opacity: (1 - (position - index).abs())
+                                          .clamp(0, 1),
+                                      child: ExcludeSemantics(
+                                        child: _LiquidNavigationContent(
+                                          item: widget.items[index],
+                                          color: context.colorScheme.primary,
+                                          selected: true,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  blurRadius: 10,
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: _LiquidAmbientHighlight(
+                                      progress: progress,
+                                      devicePixelRatio:
+                                          MediaQuery.devicePixelRatioOf(
+                                            context,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: _LiquidInnerShadow(
+                                      progress: progress,
+                                    ),
+                                  ),
                                 ),
                               ],
-                            ),
-                            child: AndroidGlassSurface(
-                              blur: false,
-                              liquidGlass: true,
-                              liquidProgress: 1,
-                              liquidAccentColor: Colors.transparent,
-                              liquidBlurSigma: 4,
-                              liquidRefractionHeight: 24,
-                              liquidRefractionAmount: 24,
-                              liquidChromaticAberration: 0,
-                              liquidDepthEffect: 0.12,
-                              scaleLiquidBlurWithProgress: false,
-                              surfaceColor: panelColor,
-                              borderRadius: panelRadius,
-                              shape: const StadiumBorder(),
-                              child: DecoratedBox(
-                                key: const ValueKey(
-                                  'liquid-glass-panel-highlight',
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: panelRadius,
-                                  gradient: RadialGradient(
-                                    center: panelHighlightAlignment,
-                                    radius: 1.5,
-                                    colors: <Color>[
-                                      Colors.white.withValues(
-                                        alpha: 0.08 * pressProgress,
-                                      ),
-                                      Colors.transparent,
-                                    ],
-                                  ),
-                                ),
-                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    contentLayer,
+                    Positioned.fill(
+                      child: _LiquidTrackBackdrop(
+                        color: trackColor,
+                        exclusion: indicatorExclusion,
+                      ),
+                    ),
                     PositionedDirectional(
-                      key: const ValueKey('liquid-glass-indicator-layer'),
+                      key: const ValueKey('liquid-toggle-outer-shadow'),
                       start: indicatorStart,
-                      top: 4,
+                      top: _trackPadding,
                       width: max(_cellWidth, 1),
-                      height: 56,
+                      height: max(indicatorHeight, 1),
                       child: IgnorePointer(
-                        child: Transform.translate(
-                          key: const ValueKey('liquid-toggle-indicator-offset'),
-                          offset: Offset(panelOffset, 0),
+                        child: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
                           transformHitTests: false,
-                          child: Transform(
-                            key: const ValueKey(
-                              'liquid-toggle-thumb-transform',
-                            ),
-                            alignment: Alignment.center,
-                            transform: Matrix4.diagonal3Values(
-                              scaleX,
-                              scaleY,
-                              1,
-                            ),
-                            transformHitTests: false,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                borderRadius: indicatorRadius,
-                                boxShadow: <BoxShadow>[
-                                  BoxShadow(
-                                    color: Colors.black.withValues(
-                                      alpha: 0.1 * pressProgress,
+                          child: const CustomPaint(
+                            painter: _LiquidOuterShadowPainter(),
+                            child: SizedBox.expand(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      key: const ValueKey('liquid-glass-content-layer'),
+                      child: ClipPath(
+                        clipper: _OutsideIndicatorClipper(indicatorExclusion),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: _trackPadding,
+                          ),
+                          child: Row(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < widget.items.length;
+                                index++
+                              )
+                                Expanded(
+                                  child: _LiquidNavigationItem(
+                                    key: ValueKey(
+                                      'liquid-navigation-item-$index',
                                     ),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 4),
+                                    item: widget.items[index],
+                                    selected: index == _committedIndex,
                                   ),
-                                ],
-                              ),
-                              child: AndroidGlassSurface(
-                                blur: false,
-                                liquidGlass: true,
-                                liquidProgress: pressProgress,
-                                liquidAccentColor: Colors.transparent,
-                                liquidBlurSigma: 0,
-                                liquidRefractionHeight: 10 * pressProgress,
-                                liquidRefractionAmount: 14 * pressProgress,
-                                liquidChromaticAberration: 0.5,
-                                liquidDepthEffect: pressProgress,
-                                scaleLiquidBlurWithProgress: false,
-                                surfaceColor: indicatorColor,
-                                borderRadius: indicatorRadius,
-                                shape: const StadiumBorder(),
-                                child: Stack(
-                                  key: const ValueKey(
-                                    'liquid-glass-accent-content-layer',
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      key: const ValueKey('liquid-navigation-semantics-layer'),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: _trackPadding,
+                        ),
+                        child: Row(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < widget.items.length;
+                              index++
+                            )
+                              Expanded(
+                                child: Semantics(
+                                  key: ValueKey(
+                                    'liquid-navigation-semantics-$index',
                                   ),
-                                  fit: StackFit.expand,
-                                  children: [
-                                    DecoratedBox(
-                                      key: const ValueKey(
-                                        'liquid-glass-interactive-highlight',
-                                      ),
-                                      decoration: BoxDecoration(
-                                        borderRadius: indicatorRadius,
-                                        gradient: RadialGradient(
-                                          center: highlightAlignment,
-                                          radius: 1.15,
-                                          colors: <Color>[
-                                            Colors.white.withValues(
-                                              alpha:
-                                                  0.04 + pressProgress * 0.18,
-                                            ),
-                                            Colors.transparent,
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    for (
-                                      var index = 0;
-                                      index < widget.items.length;
-                                      index++
-                                    )
-                                      IgnorePointer(
-                                        child: Opacity(
-                                          opacity:
-                                              (1 - (position - index).abs())
-                                                  .clamp(0, 1),
-                                          child: _LiquidIndicatorContent(
-                                            index: index,
-                                            item: widget.items[index],
-                                            color: context.colorScheme.primary,
-                                            scale: 1 + 0.2 * pressProgress,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                                  container: true,
+                                  selected: index == _committedIndex,
+                                  button: true,
+                                  label: intl.Intl.message(
+                                    widget.items[index].label.name,
+                                  ),
+                                  onTap: () => _activateItem(index),
+                                  child: const SizedBox.expand(),
                                 ),
                               ),
-                            ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
@@ -653,17 +712,66 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   }
 }
 
+class _LiquidTrackBackdrop extends StatelessWidget {
+  final Color color;
+  final Rect exclusion;
+
+  const _LiquidTrackBackdrop({required this.color, required this.exclusion});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: _OutsideIndicatorClipper(exclusion),
+      child: BackdropFilter(
+        key: const ValueKey('liquid-toggle-track-backdrop-filter'),
+        filter: ui.ImageFilter.matrix(Matrix4.identity().storage),
+        child: ColoredBox(
+          key: const ValueKey('liquid-toggle-track-color'),
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _OutsideIndicatorClipper extends CustomClipper<Path> {
+  final Rect exclusion;
+
+  const _OutsideIndicatorClipper(this.exclusion);
+
+  @override
+  Path getClip(Size size) {
+    final outer = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          Radius.circular(size.height / 2),
+        ),
+      );
+    final inner = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          exclusion,
+          Radius.circular(exclusion.height / 2),
+        ),
+      );
+    return Path.combine(PathOperation.difference, outer, inner);
+  }
+
+  @override
+  bool shouldReclip(covariant _OutsideIndicatorClipper oldClipper) {
+    return oldClipper.exclusion != exclusion;
+  }
+}
+
 class _LiquidNavigationItem extends StatelessWidget {
-  final int index;
   final NavigationItem item;
   final bool selected;
-  final VoidCallback onPressed;
 
   const _LiquidNavigationItem({
-    required this.index,
+    super.key,
     required this.item,
     required this.selected,
-    required this.onPressed,
   });
 
   @override
@@ -672,88 +780,268 @@ class _LiquidNavigationItem extends StatelessWidget {
     final color = surfaceColor.withValues(
       alpha: selected ? surfaceColor.a : surfaceColor.a * 0.4,
     );
-    final label = intl.Intl.message(item.label.name);
-    return Semantics(
-      selected: selected,
-      button: true,
-      label: label,
-      onTap: onPressed,
-      child: Center(
-        child: Transform.scale(
-          key: ValueKey('liquid-navigation-item-content-$index'),
-          scale: 1,
-          transformHitTests: false,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconTheme.merge(
-                data: IconThemeData(size: 25, color: color),
-                child: item.icon,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontSize: 11,
-                  height: 1.15,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return ExcludeSemantics(
+      child: _LiquidNavigationContent(
+        item: item,
+        color: color,
+        selected: selected,
       ),
     );
   }
 }
 
-class _LiquidIndicatorContent extends StatelessWidget {
-  final int index;
+class _LiquidNavigationContent extends StatelessWidget {
   final NavigationItem item;
   final Color color;
-  final double scale;
+  final bool selected;
 
-  const _LiquidIndicatorContent({
-    required this.index,
+  const _LiquidNavigationContent({
     required this.item,
     required this.color,
-    required this.scale,
+    required this.selected,
   });
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Transform.scale(
-        key: ValueKey('liquid-indicator-content-transform-$index'),
-        scale: scale,
-        transformHitTests: false,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconTheme.merge(
-              data: IconThemeData(size: 25, color: color),
-              child: item.icon,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconTheme.merge(
+            data: IconThemeData(size: 25, color: color),
+            child: item.icon,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            intl.Intl.message(item.label.name),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontSize: 11,
+              height: 1.15,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
             ),
-            const SizedBox(height: 2),
-            Text(
-              intl.Intl.message(item.label.name),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.textTheme.labelSmall?.copyWith(
-                color: color,
-                fontSize: 11,
-                height: 1.15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+}
+
+class _LiquidOuterShadowPainter extends CustomPainter {
+  const _LiquidOuterShadowPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final capsule = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(size.height / 2),
+    );
+    final layerRect = Rect.fromLTRB(-8, -8, size.width + 8, size.height + 8);
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.05)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas
+      ..saveLayer(layerRect, Paint())
+      ..drawRRect(capsule.shift(const Offset(0, 4 / 6)), shadowPaint)
+      ..drawRRect(capsule, Paint()..blendMode = BlendMode.clear)
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _LiquidOuterShadowPainter oldDelegate) => false;
+}
+
+class _LiquidInnerShadow extends StatelessWidget {
+  final double progress;
+
+  const _LiquidInnerShadow({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    if (progress <= 0) {
+      return const SizedBox.expand();
+    }
+    final radius = 4 * progress;
+    return ImageFiltered(
+      imageFilter: ui.ImageFilter.blur(
+        sigmaX: radius,
+        sigmaY: radius,
+        tileMode: TileMode.decal,
+      ),
+      child: CustomPaint(
+        key: const ValueKey('liquid-toggle-inner-shadow'),
+        painter: _LiquidInnerShadowPainter(progress),
+      ),
+    );
+  }
+}
+
+class _LiquidInnerShadowPainter extends CustomPainter {
+  final double progress;
+
+  const _LiquidInnerShadowPainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) {
+      return;
+    }
+    final radius = 4 * progress;
+    final rect = Offset.zero & size;
+    final capsule = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(size.height / 2),
+    );
+    canvas
+      ..save()
+      ..clipRRect(capsule)
+      ..saveLayer(rect, Paint());
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.15 * progress);
+    canvas.drawRRect(capsule, shadowPaint);
+    canvas.drawRRect(
+      capsule.shift(Offset(0, radius)),
+      Paint()..blendMode = BlendMode.clear,
+    );
+    canvas
+      ..restore()
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _LiquidInnerShadowPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _LiquidAmbientHighlight extends StatefulWidget {
+  final double progress;
+  final double devicePixelRatio;
+
+  const _LiquidAmbientHighlight({
+    required this.progress,
+    required this.devicePixelRatio,
+  });
+
+  @override
+  State<_LiquidAmbientHighlight> createState() =>
+      _LiquidAmbientHighlightState();
+}
+
+class _LiquidAmbientHighlightState extends State<_LiquidAmbientHighlight> {
+  static Future<ui.FragmentProgram>? _programFuture;
+
+  ui.FragmentProgram? _program;
+  ui.FragmentShader? _shader;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProgram();
+  }
+
+  Future<void> _loadProgram() async {
+    if (!ui.ImageFilter.isShaderFilterSupported) {
+      return;
+    }
+    try {
+      final program = await (_programFuture ??= ui.FragmentProgram.fromAsset(
+        'shaders/liquid_ambient_highlight.frag',
+      ));
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _program = program;
+      });
+    } on Exception catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'fl_clash',
+          context: ErrorDescription(
+            'while loading the liquid ambient highlight shader',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _shader?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _shader ??= _program?.fragmentShader();
+    return CustomPaint(
+      painter: _LiquidAmbientHighlightPainter(
+        widget.progress,
+        widget.devicePixelRatio,
+        _shader,
+      ),
+    );
+  }
+}
+
+class _LiquidAmbientHighlightPainter extends CustomPainter {
+  final double progress;
+  final double devicePixelRatio;
+  final ui.FragmentShader? shader;
+
+  const _LiquidAmbientHighlightPainter(
+    this.progress,
+    this.devicePixelRatio,
+    this.shader,
+  );
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) {
+      return;
+    }
+    final rect = Offset.zero & size;
+    final capsule = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(size.height / 2),
+    );
+    final paint = Paint()..style = PaintingStyle.stroke;
+    if (shader != null) {
+      shader!
+        ..setFloat(0, size.width * devicePixelRatio)
+        ..setFloat(1, size.height * devicePixelRatio)
+        ..setFloat(2, size.height * devicePixelRatio / 2)
+        ..setFloat(3, size.height * devicePixelRatio / 2)
+        ..setFloat(4, size.height * devicePixelRatio / 2)
+        ..setFloat(5, size.height * devicePixelRatio / 2)
+        ..setFloat(6, pi / 4)
+        ..setFloat(7, 1)
+        ..setFloat(8, 0.38 * progress);
+      paint.shader = shader;
+    } else {
+      paint.color = Colors.white.withValues(alpha: 0.38 * progress);
+    }
+    final widthPx = 0.5 / 1.5 * devicePixelRatio;
+    paint
+      ..strokeWidth = (widthPx.ceil() * 2) / devicePixelRatio
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.5 / 3);
+    canvas
+      ..save()
+      ..clipRRect(capsule)
+      ..drawRRect(capsule, paint)
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _LiquidAmbientHighlightPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.devicePixelRatio != devicePixelRatio ||
+        oldDelegate.shader != shader;
   }
 }
