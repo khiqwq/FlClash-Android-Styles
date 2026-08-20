@@ -65,7 +65,16 @@ void main() {
       '.github/workflows/build.yaml',
     ).readAsStringSync();
 
-    expect(interfaceWorkflow, contains('cache: false'));
+    expect(
+      RegExp(
+        r'actions/setup-go@[0-9a-f]{40}[\s\S]*?cache: false',
+      ).hasMatch(interfaceWorkflow),
+      true,
+    );
+    expect(
+      interfaceWorkflow.indexOf('Test Android appearance'),
+      lessThan(interfaceWorkflow.indexOf('Setup development signing')),
+    );
     expect(interfaceWorkflow, contains('Verify release APK identity'));
     expect(interfaceWorkflow, contains('com.follow.clash.dev'));
     expect(
@@ -78,7 +87,12 @@ void main() {
         '6f301ced512a8d62d5d39182f3a2afa7b9ce95e4edc465637e1a1f61a9a20ac2',
       ),
     );
-    expect(releaseWorkflow, contains('cache: false'));
+    expect(
+      RegExp(
+        r'actions/setup-go@[0-9a-f]{40}[\s\S]*?cache: false',
+      ).allMatches(releaseWorkflow).length,
+      2,
+    );
     expect(
       releaseWorkflow,
       contains(
@@ -96,6 +110,11 @@ void main() {
     expect(releaseWorkflow, contains('Verify Android APK identity'));
     expect(
       releaseWorkflow,
+      contains('Verified using v2 scheme (APK Signature Scheme v2): true'),
+    );
+    expect(releaseWorkflow, isNot(contains('pip install requests')));
+    expect(
+      releaseWorkflow,
       contains(
         '2859e236b6c1c6073773752678c52e8e902a9503ae9beed6729ca999c376841c',
       ),
@@ -103,6 +122,19 @@ void main() {
     expect(releaseWorkflow, contains('mapfile -t apks'));
     expect(releaseWorkflow, contains(r'test "${#apks[@]}" -gt 0'));
     expect(releaseWorkflow, contains('if-no-files-found: error'));
+  });
+
+  test('release Telegram sender has no runtime package installation', () {
+    final script = File('release_telegram.py').readAsStringSync();
+    final workflow = File('.github/workflows/build.yaml').readAsStringSync();
+
+    expect(script, isNot(contains('import requests')));
+    expect(script, contains('from urllib import request'));
+    final telegramStep = workflow.substring(
+      workflow.indexOf('- name: Push to telegram'),
+      workflow.indexOf('- name: Patch release.md'),
+    );
+    expect(telegramStep, isNot(contains('pip install')));
   });
 
   test('GitHub preview builds pin tools and fixed development signing', () {

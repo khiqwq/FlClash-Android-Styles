@@ -47,4 +47,11 @@ void main() {
       ]);
     });
   });
+
+  test('flutter distributor dependency is pinned to a commit', () {
+    expect(
+      setup.flutterDistributorRevision,
+      'cdeeef2d8f8325bb6ae0bc86b39f56e4325d1a58',
+    );
+  });
 }

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
+const flutterDistributorRevision = 'cdeeef2d8f8325bb6ae0bc86b39f56e4325d1a58';
+
 const _allTargets = <String, String>{
   'android': 'apk',
   'linux': 'deb', // appimage + rpm added for amd64 only
@@ -163,7 +165,7 @@ Future<int> _package(
     'git',
     'https://github.com/chen08209/flutter_distributor.git',
     '--git-ref',
-    'FlClash',
+    flutterDistributorRevision,
     '--git-path',
     'packages/flutter_distributor',
   ]);
