@@ -585,7 +585,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Modify the default system exit event",
     ),
     "minutesAgo": m17,
-    "miuixStyle": MessageLookupByLibrary.simpleMessage("Miuix-inspired"),
+    "miuixStyle": MessageLookupByLibrary.simpleMessage("Miuix"),
     "mixedPort": MessageLookupByLibrary.simpleMessage("Mixed Port"),
     "mode": MessageLookupByLibrary.simpleMessage("Mode"),
     "monochromeScheme": MessageLookupByLibrary.simpleMessage("Monochrome"),

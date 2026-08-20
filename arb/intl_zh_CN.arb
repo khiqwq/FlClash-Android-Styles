@@ -32,7 +32,7 @@
   "themeDesc": "自定义界面风格、主题模式与色彩",
   "interfaceStyle": "界面风格",
   "materialStyle": "Material",
-  "miuixStyle": "Miuix 灵感",
+  "miuixStyle": "Miuix",
   "blur": "模糊顶部和底部栏",
   "blurDesc": "使用半透明背景模糊顶部和底部栏",
   "floatingBottomBar": "悬浮底部栏",

@@ -27,6 +27,17 @@ void main() {
       isFalse,
     );
   });
+
+  test('Miuix style name is direct in every locale', () async {
+    for (final locale in AppLocalizations.delegate.supportedLocales) {
+      final appLocalizations = await AppLocalizations.load(locale);
+      expect(
+        appLocalizations.miuixStyle,
+        'Miuix',
+        reason: '$locale must use the direct Miuix name',
+      );
+    }
+  });
 }
 
 List<String> _allMessages(AppLocalizations appLocalizations) {

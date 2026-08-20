@@ -269,14 +269,9 @@ class AppLocalizations {
     return Intl.message('Material', name: 'materialStyle', desc: '', args: []);
   }
 
-  /// `Miuix-inspired`
+  /// `Miuix`
   String get miuixStyle {
-    return Intl.message(
-      'Miuix-inspired',
-      name: 'miuixStyle',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('Miuix', name: 'miuixStyle', desc: '', args: []);
   }
 
   /// `Blur top and bottom bars`

@@ -44,7 +44,7 @@ void main() {
     );
   });
 
-  test('Miuix-inspired appearance supplies coherent component tokens', () {
+  test('Miuix appearance supplies coherent component tokens', () {
     final theme = applyAppearanceComponentTheme(
       ThemeData(),
       const AppearanceTheme(
