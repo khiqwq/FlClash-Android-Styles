@@ -65,8 +65,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   int? _deferredExternalIndex;
   int? _awaitingExternalIndex;
   int? _awaitingExternalBaselineIndex;
-  final Set<int> _supersededExternalIndices = {};
-  bool _acceptUnchangedExternalSelection = false;
+  Duration _awaitingExternalStartedAt = Duration.zero;
+  final Map<int, int> _supersededExternalCounts = {};
+  Timer? _supersededExternalFallbackTimer;
   int? _activePointer;
   int? _directTapIndex;
   bool _didDrag = false;
@@ -129,28 +130,42 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   @override
   void didUpdateWidget(covariant LiquidToggleNavigationBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.items.length > oldWidget.items.length) {
-      _supersededExternalIndices.removeWhere(_isItemIndex);
-    }
     var selectedIndex = _clampIndex(widget.selectedIndex);
     final awaitingExternalIndex = _awaitingExternalIndex;
     if (oldWidget.items.length != widget.items.length &&
         awaitingExternalIndex != null &&
         widget.selectedIndex == awaitingExternalIndex &&
         !_isItemIndex(widget.selectedIndex)) {
-      _supersededExternalIndices.add(widget.selectedIndex);
       selectedIndex = _clampIndex(oldWidget.selectedIndex);
     }
     if (!_canPreserveSelectionState(oldWidget)) {
-      _reconcileSelection(selectedIndex);
+      _reconcileSelection(
+        selectedIndex,
+        markAwaitingSuperseded:
+            !(oldWidget.items.length != widget.items.length &&
+                awaitingExternalIndex != null &&
+                widget.selectedIndex == awaitingExternalIndex &&
+                !_isItemIndex(widget.selectedIndex)),
+      );
       return;
     }
-    if (_supersededExternalIndices.contains(widget.selectedIndex) &&
-        widget.selectedIndex != _awaitingExternalIndex &&
-        (_awaitingExternalIndex == null ||
-            _awaitingExternalIndex == _awaitingExternalBaselineIndex)) {
-      _supersededExternalIndices.remove(widget.selectedIndex);
-      _acceptUnchangedExternalSelection = true;
+    if (widget.selectedIndex != _awaitingExternalIndex &&
+        _consumeSupersededExternalIndex(widget.selectedIndex)) {
+      final awaitingExternalIndex = _awaitingExternalIndex;
+      if (awaitingExternalIndex != null &&
+          awaitingExternalIndex != _awaitingExternalBaselineIndex) {
+        final elapsed =
+            WidgetsBinding.instance.currentSystemFrameTimeStamp -
+            _awaitingExternalStartedAt;
+        if (elapsed >= const Duration(milliseconds: 24)) {
+          _applyExternalSelection(widget.selectedIndex);
+        } else {
+          _scheduleSupersededExternalFallback(
+            widget.selectedIndex,
+            awaitingExternalIndex,
+          );
+        }
+      }
       return;
     }
     if (_activePointer != null) {
@@ -159,11 +174,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
           _clearAwaitingExternalIndex();
           return;
         }
-        if (selectedIndex == _clampIndex(oldWidget.selectedIndex) &&
-            !_acceptUnchangedExternalSelection) {
+        if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
           return;
         }
-        _acceptUnchangedExternalSelection = false;
       }
       _deferredExternalIndex = selectedIndex == _committedIndex
           ? null
@@ -175,11 +188,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
         _clearAwaitingExternalIndex();
         return;
       }
-      if (selectedIndex == _clampIndex(oldWidget.selectedIndex) &&
-          !_acceptUnchangedExternalSelection) {
+      if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
         return;
       }
-      _acceptUnchangedExternalSelection = false;
       _clearAwaitingExternalIndex();
     }
     if (selectedIndex == _committedIndex &&
@@ -195,6 +206,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   @override
   void dispose() {
     _releaseEpoch++;
+    _supersededExternalFallbackTimer?.cancel();
     _clearPointerInteraction();
     _stopVelocityTracking();
     _positionController
@@ -233,26 +245,73 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     return (_activePointer == null) == (_directTapIndex == null);
   }
 
+  void _markSupersededExternalIndex(int index) {
+    _supersededExternalCounts.update(
+      index,
+      (count) => count + 1,
+      ifAbsent: () => 1,
+    );
+  }
+
+  bool _consumeSupersededExternalIndex(int index) {
+    final count = _supersededExternalCounts[index];
+    if (count == null) {
+      return false;
+    }
+    if (count == 1) {
+      _supersededExternalCounts.remove(index);
+    } else {
+      _supersededExternalCounts[index] = count - 1;
+    }
+    return true;
+  }
+
+  void _scheduleSupersededExternalFallback(
+    int index,
+    int awaitingExternalIndex,
+  ) {
+    _supersededExternalFallbackTimer?.cancel();
+    _supersededExternalFallbackTimer = Timer(
+      const Duration(milliseconds: 16),
+      () {
+        if (!mounted ||
+            widget.selectedIndex != index ||
+            _awaitingExternalIndex != awaitingExternalIndex) {
+          return;
+        }
+        _applyExternalSelection(index);
+      },
+    );
+  }
+
   void _setAwaitingExternalIndex(int index) {
+    _supersededExternalFallbackTimer?.cancel();
     final previousIndex = _awaitingExternalIndex;
     if (previousIndex != null && previousIndex != index) {
-      _supersededExternalIndices.add(previousIndex);
+      _markSupersededExternalIndex(previousIndex);
     }
     _awaitingExternalIndex = index;
     _awaitingExternalBaselineIndex = widget.selectedIndex;
+    _awaitingExternalStartedAt =
+        WidgetsBinding.instance.currentSystemFrameTimeStamp;
   }
 
   void _clearAwaitingExternalIndex() {
+    _supersededExternalFallbackTimer?.cancel();
     _awaitingExternalIndex = null;
     _awaitingExternalBaselineIndex = null;
-    _supersededExternalIndices.clear();
+    _awaitingExternalStartedAt = Duration.zero;
   }
 
-  void _reconcileSelection(int selectedIndex) {
+  void _reconcileSelection(
+    int selectedIndex, {
+    bool markAwaitingSuperseded = true,
+  }) {
     final awaitingExternalIndex = _awaitingExternalIndex;
-    if (awaitingExternalIndex != null &&
+    if (markAwaitingSuperseded &&
+        awaitingExternalIndex != null &&
         awaitingExternalIndex != selectedIndex) {
-      _supersededExternalIndices.add(awaitingExternalIndex);
+      _markSupersededExternalIndex(awaitingExternalIndex);
     }
     _releaseEpoch++;
     _clearPointerInteraction();
@@ -261,7 +320,8 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     _committedIndex = selectedIndex;
     _awaitingExternalIndex = null;
     _awaitingExternalBaselineIndex = null;
-    _acceptUnchangedExternalSelection = false;
+    _awaitingExternalStartedAt = Duration.zero;
+    _supersededExternalFallbackTimer?.cancel();
     _deferredExternalIndex = null;
     _fraction = selectedIndex.toDouble();
     _animateToValue(_fraction);

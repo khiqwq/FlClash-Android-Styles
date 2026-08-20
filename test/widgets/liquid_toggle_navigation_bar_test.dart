@@ -462,24 +462,87 @@ void main() {
       true,
     );
 
-    key.currentState!.rebuild();
-    await tester.pump();
-    expect(
-      tester
-          .getSemantics(_semantics(1))
-          .getSemanticsData()
-          .flagsCollection
-          .isSelected
-          .toBoolOrNull(),
-      true,
-    );
-
     key.currentState!.acknowledge(0);
     await tester.pumpAndSettle();
     expect(callbacks, [1, 0]);
     expect(
       tester
           .getSemantics(_semantics(0))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('out-of-order rapid acknowledgements keep the latest selection', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.tap(_item(2));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(callbacks, [1, 2]);
+
+    key.currentState!.acknowledge(1);
+    await tester.pump();
+    expect(
+      tester
+          .getSemantics(_semantics(2))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    key.currentState!.acknowledge(2);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .getSemantics(_semantics(2))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('late superseded acknowledgement after latest ack is ignored', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.tap(_item(2));
+    await tester.pump(const Duration(milliseconds: 1));
+    key.currentState!.acknowledge(2);
+    await tester.pump();
+    key.currentState!.acknowledge(1);
+    await tester.pumpAndSettle();
+
+    expect(callbacks, [1, 2]);
+    expect(
+      tester
+          .getSemantics(_semantics(2))
           .getSemanticsData()
           .flagsCollection
           .isSelected
