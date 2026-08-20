@@ -94,6 +94,15 @@ void main() {
       ),
     );
     expect(releaseWorkflow, contains('Verify Android APK identity'));
+    expect(
+      releaseWorkflow,
+      contains(
+        '2859e236b6c1c6073773752678c52e8e902a9503ae9beed6729ca999c376841c',
+      ),
+    );
+    expect(releaseWorkflow, contains('mapfile -t apks'));
+    expect(releaseWorkflow, contains(r'test "${#apks[@]}" -gt 0'));
+    expect(releaseWorkflow, contains('if-no-files-found: error'));
   });
 
   test('GitHub preview builds pin tools and fixed development signing', () {
