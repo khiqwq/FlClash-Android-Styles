@@ -772,6 +772,14 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                                         child: _LiquidNavigationContent(
                                           item: widget.items[index],
                                           color: context.colorScheme.primary,
+                                          labelColor: Color.lerp(
+                                            Colors.black,
+                                            context.colorScheme.primary,
+                                            progress,
+                                          ),
+                                          labelKey: ValueKey(
+                                            'liquid-accent-label-$index',
+                                          ),
                                           selected: true,
                                         ),
                                       ),
@@ -977,11 +985,15 @@ class _LiquidNavigationItem extends StatelessWidget {
 class _LiquidNavigationContent extends StatelessWidget {
   final NavigationItem item;
   final Color color;
+  final Color? labelColor;
+  final Key? labelKey;
   final bool selected;
 
   const _LiquidNavigationContent({
     required this.item,
     required this.color,
+    this.labelColor,
+    this.labelKey,
     required this.selected,
   });
 
@@ -999,10 +1011,11 @@ class _LiquidNavigationContent extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             intl.Intl.message(item.label.name),
+            key: labelKey,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: context.textTheme.labelSmall?.copyWith(
-              color: color,
+              color: labelColor ?? color,
               fontSize: 11,
               height: 1.15,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
