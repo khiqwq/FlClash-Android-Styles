@@ -51,6 +51,7 @@ class _ToggleHarness extends StatefulWidget {
 
 class _ToggleHarnessState extends State<_ToggleHarness> {
   late int selectedIndex;
+  int itemCount = 3;
 
   @override
   void initState() {
@@ -66,6 +67,12 @@ class _ToggleHarnessState extends State<_ToggleHarness> {
 
   void rebuild() {
     setState(() {});
+  }
+
+  void setItemCount(int value) {
+    setState(() {
+      itemCount = value;
+    });
   }
 
   @override
@@ -87,7 +94,7 @@ class _ToggleHarnessState extends State<_ToggleHarness> {
           child: SizedBox(
             width: 240,
             child: LiquidToggleNavigationBar(
-              items: _items(),
+              items: _items().take(itemCount).toList(growable: false),
               selectedIndex: selectedIndex,
               onSelected: (index) {
                 widget.callbacks.add(index);
@@ -395,6 +402,92 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(callbacks, [1, 0]);
+  });
+
+  testWidgets('pending selection survives an unchanged parent rebuild', (
+    tester,
+  ) async {
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(callbacks, [1]);
+
+    key.currentState!.rebuild();
+    await tester.pump();
+    await tester.tapAt(tester.getCenter(_item(0)));
+    await tester.pumpAndSettle();
+
+    expect(callbacks, [1, 0]);
+  });
+
+  testWidgets('pending selection reconciles when items shrink', (tester) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(2));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(callbacks, [2]);
+
+    key.currentState!.setItemCount(2);
+    await tester.pump();
+
+    expect(_item(2), findsNothing);
+    expect(
+      tester
+          .getSemantics(_semantics(0))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    expect(
+      tester
+          .getSemantics(_semantics(1))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      false,
+    );
+
+    await tester.tap(_item(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(callbacks, [2, 1]);
+    expect(
+      tester
+          .getSemantics(_semantics(1))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+
+    key.currentState!.acknowledge(1);
+    await tester.pumpAndSettle();
+    expect(callbacks, [2, 1]);
+    expect(
+      tester
+          .getSemantics(_semantics(1))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    semanticsHandle.dispose();
   });
 
   testWidgets('thumb backdrop captures and transforms the complete track', (

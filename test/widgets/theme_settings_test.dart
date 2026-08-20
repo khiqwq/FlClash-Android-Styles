@@ -1,3 +1,4 @@
+import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
@@ -36,6 +37,11 @@ void main() {
           GlobalWidgetsLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.delegate.supportedLocales,
+        builder: (context, child) {
+          globalState.measure = Measure.of(context, 1);
+          globalState.theme = CommonTheme.of(context, 1);
+          return child!;
+        },
         home: Scaffold(body: child),
       ),
     );
@@ -107,12 +113,21 @@ void main() {
       container.read(themeSettingProvider).interfaceStyle,
       InterfaceStyle.material,
     );
+    expect(container.read(themeSettingProvider).enableMonetColors, true);
+    expect(container.read(configProvider).themeProps.enableMonetColors, true);
   });
 
   testWidgets('Monet color toggle updates the persisted theme setting', (
     tester,
   ) async {
-    await tester.pumpWidget(buildApp(const MonetColorsSetting()));
+    container
+        .read(themeSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(interfaceStyle: InterfaceStyle.miuix),
+        );
+    await tester.pumpWidget(
+      buildApp(const MonetColorsSetting(isAndroid: true)),
+    );
     await tester.pumpAndSettle();
     final localizations = AppLocalizations.of(
       tester.element(find.byType(MonetColorsSetting)),
@@ -126,6 +141,64 @@ void main() {
 
     expect(container.read(themeSettingProvider).enableMonetColors, false);
     expect(container.read(configProvider).themeProps.enableMonetColors, false);
+  });
+
+  testWidgets('Monet controls follow Material and fixed Miuix modes', (
+    tester,
+  ) async {
+    container
+        .read(themeSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            interfaceStyle: InterfaceStyle.material,
+            enableMonetColors: false,
+          ),
+        );
+    await tester.pumpWidget(
+      buildApp(const MonetColorsSetting(isAndroid: true)),
+    );
+    expect(find.byKey(const ValueKey('monet-colors-toggle')), findsNothing);
+
+    container
+        .read(themeSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(interfaceStyle: InterfaceStyle.miuix),
+        );
+    await tester.pump();
+    expect(findListTileByKey('monet-colors-toggle'), findsOneWidget);
+
+    await tester.pumpWidget(buildApp(const ThemeView(isAndroid: true)));
+    await tester.pumpAndSettle();
+    expect(find.byType(ColorSchemeBox), findsNothing);
+    await tester.pumpWidget(buildApp(const PureBlackSetting(isAndroid: true)));
+    final fixedPureBlack = tester.widget<Switch>(
+      find.descendant(
+        of: findListTileByKey('pure-black-toggle'),
+        matching: find.byType(Switch),
+      ),
+    );
+    expect(fixedPureBlack.onChanged, isNull);
+
+    container
+        .read(themeSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            interfaceStyle: InterfaceStyle.material,
+            enableMonetColors: true,
+          ),
+        );
+    await tester.pumpWidget(buildApp(const ThemeView(isAndroid: true)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('monet-colors-toggle')), findsNothing);
+    expect(find.byType(ColorSchemeBox), findsWidgets);
+    await tester.pumpWidget(buildApp(const PureBlackSetting(isAndroid: true)));
+    final materialPureBlack = tester.widget<Switch>(
+      find.descendant(
+        of: findListTileByKey('pure-black-toggle'),
+        matching: find.byType(Switch),
+      ),
+    );
+    expect(materialPureBlack.onChanged, isNotNull);
   });
 
   testWidgets('blur appearance wraps the top bar in a backdrop filter', (

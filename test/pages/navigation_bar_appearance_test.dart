@@ -121,8 +121,10 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: HomeBackScopeContainer(isAndroid: true, child: Text('root')),
+      const ProviderScope(
+        child: MaterialApp(
+          home: HomeBackScopeContainer(isAndroid: true, child: Text('root')),
+        ),
       ),
     );
     expect(find.text('root'), findsOneWidget);
@@ -143,9 +145,7 @@ void main() {
     expect(find.byType(AndroidGlassSurface), findsNothing);
   });
 
-  testWidgets('Miuix-inspired navigation uses compact theme tokens', (
-    tester,
-  ) async {
+  testWidgets('Miuix navigation uses compact theme tokens', (tester) async {
     final container = await pumpHome(
       tester,
       const AppearanceTheme(
@@ -172,6 +172,37 @@ void main() {
       ),
       findsOneWidget,
     );
+    final tapTargets = find.descendant(
+      of: find.byType(MiuixBottomNavigationBar),
+      matching: find.byType(InkWell),
+    );
+    for (final element in tapTargets.evaluate()) {
+      final size = tester.getSize(
+        find.byElementPredicate((candidate) {
+          return identical(candidate, element);
+        }),
+      );
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+    }
+    final iconThemes = tester
+        .widgetList<IconTheme>(
+          find.descendant(
+            of: find.byType(MiuixBottomNavigationBar),
+            matching: find.byType(IconTheme),
+          ),
+        )
+        .where((theme) => theme.data.size == 26)
+        .toList();
+    expect(iconThemes, hasLength(2));
+    final unselectedColor = iconThemes.last.data.color!;
+    final background = Theme.of(
+      tester.element(find.byType(MiuixBottomNavigationBar)),
+    ).colorScheme.surface;
+    final lighter = unselectedColor.computeLuminance() + 0.05;
+    final darker = background.computeLuminance() + 0.05;
+    final contrast = lighter > darker ? lighter / darker : darker / lighter;
+    expect(contrast, greaterThanOrEqualTo(3));
 
     await tester.tap(
       find

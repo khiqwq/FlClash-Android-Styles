@@ -109,7 +109,7 @@ class ListItem<T> extends StatelessWidget {
   final Widget? leading;
   final Widget title;
   final Widget? subtitle;
-  final EdgeInsets padding;
+  final EdgeInsets? padding;
   final ListTileTitleAlignment tileTitleAlignment;
   final bool? dense;
   final Widget? trailing;
@@ -117,7 +117,7 @@ class ListItem<T> extends StatelessWidget {
   final double? horizontalTitleGap;
   final TextStyle? titleTextStyle;
   final TextStyle? subtitleTextStyle;
-  final double minVerticalPadding;
+  final double? minVerticalPadding;
   final Color? color;
   final double? minTileHeight;
   final VisualDensity? visualDensity;
@@ -128,7 +128,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.padding,
     this.trailing,
     this.horizontalTitleGap,
     this.dense,
@@ -138,7 +138,7 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = const _DefaultAction();
 
@@ -147,7 +147,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.padding,
     this.trailing,
     required Widget widget,
     double? maxWidth,
@@ -161,7 +161,7 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = _OpenAction(
          widget: widget,
@@ -177,7 +177,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.padding,
     this.trailing,
     required Widget widget,
     double? maxWidth,
@@ -189,7 +189,7 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = _NextAction(widget: widget, maxWidth: maxWidth, blur: blur),
        onTap = null;
@@ -199,7 +199,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.padding,
     this.trailing,
     required String dialogTitle,
     required List<T> options,
@@ -213,7 +213,7 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = _OptionsAction<T>(
          title: dialogTitle,
@@ -229,7 +229,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.padding,
     this.trailing,
     required String dialogTitle,
     required String value,
@@ -246,7 +246,7 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = _InputAction(
          title: dialogTitle,
@@ -265,7 +265,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
-    this.padding = const EdgeInsets.only(left: 16, right: 8),
+    this.padding,
     bool value = false,
     ValueChanged<bool?>? onChanged,
     this.horizontalTitleGap,
@@ -275,7 +275,7 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = _CheckboxAction(value: value, onChanged: onChanged),
        trailing = null,
@@ -286,7 +286,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
-    this.padding = const EdgeInsets.only(left: 16, right: 8),
+    this.padding,
     required bool value,
     ValueChanged<bool>? onChanged,
     this.horizontalTitleGap,
@@ -296,7 +296,7 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = _ToggleAction(value: value, onChanged: onChanged),
        trailing = null,
@@ -307,7 +307,7 @@ class ListItem<T> extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
-    this.padding = const EdgeInsets.only(left: 12, right: 16),
+    this.padding,
     required T value,
     VoidCallback? onTap,
     this.horizontalTitleGap = 8,
@@ -317,11 +317,20 @@ class ListItem<T> extends StatelessWidget {
     this.color,
     this.minTileHeight,
     this.visualDensity,
-    this.minVerticalPadding = 12,
+    this.minVerticalPadding,
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   }) : _action = _RadioAction<T>(value: value, onTap: onTap),
        leading = null,
        onTap = null;
+
+  EdgeInsets get _materialDefaultPadding {
+    return switch (_action) {
+      _CheckboxAction() ||
+      _ToggleAction() => const EdgeInsets.only(left: 16, right: 8),
+      _RadioAction() => const EdgeInsets.only(left: 12, right: 16),
+      _ => const EdgeInsets.symmetric(horizontal: 16),
+    };
+  }
 
   Widget _buildListTile(
     BuildContext context, {
@@ -365,21 +374,25 @@ class ListItem<T> extends StatelessWidget {
           : effectiveLeading,
       horizontalTitleGap: horizontalTitleGap,
       title: title,
-      minTileHeight: useMiuixTokens
-          ? subtitle == null
-                ? 60
-                : 72
-          : minTileHeight,
-      minVerticalPadding: useMiuixTokens
-          ? listTileTheme.minVerticalPadding ?? minVerticalPadding
-          : minVerticalPadding,
+      minTileHeight:
+          minTileHeight ??
+          (useMiuixTokens
+              ? subtitle == null
+                    ? 60
+                    : 72
+              : null),
+      minVerticalPadding:
+          minVerticalPadding ??
+          (useMiuixTokens ? listTileTheme.minVerticalPadding : null) ??
+          12,
       subtitle: subtitle,
       titleAlignment: tileTitleAlignment,
       onTap: onTap,
       trailing: trailing ?? this.trailing,
-      contentPadding: useMiuixTokens
-          ? listTileTheme.contentPadding ?? padding
-          : padding,
+      contentPadding:
+          padding ??
+          (useMiuixTokens ? listTileTheme.contentPadding : null) ??
+          _materialDefaultPadding,
     );
   }
 
