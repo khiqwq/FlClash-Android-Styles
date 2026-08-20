@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:test/test.dart';
 
 import '../setup.dart' as setup;
@@ -48,10 +50,18 @@ void main() {
     });
   });
 
-  test('flutter distributor dependency is pinned to a commit', () {
+  test('build packaging dependencies are pinned', () {
     expect(
       setup.flutterDistributorRevision,
       'cdeeef2d8f8325bb6ae0bc86b39f56e4325d1a58',
     );
+    expect(setup.appdmgVersion, '0.6.6');
+    expect(
+      setup.appImageToolSha256,
+      'b90f4a8b18967545fda78a445b27680a1642f1ef9488ced28b65398f2be7add2',
+    );
+    final source = File('setup.dart').readAsStringSync();
+    expect(source, contains(r"'appdmg@$appdmgVersion'"));
+    expect(source, contains('_hasExpectedSha256'));
   });
 }
