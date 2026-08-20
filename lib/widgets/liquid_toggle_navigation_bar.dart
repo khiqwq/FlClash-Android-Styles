@@ -66,7 +66,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   int? _awaitingExternalIndex;
   int? _awaitingExternalBaselineIndex;
   Duration _awaitingExternalStartedAt = Duration.zero;
-  final Map<int, int> _supersededExternalCounts = {};
+  final Map<int, List<Duration>> _supersededExternalTimes = {};
   Timer? _supersededExternalFallbackTimer;
   int? _activePointer;
   int? _directTapIndex;
@@ -149,8 +149,14 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
       );
       return;
     }
+    final awaitingMatchesBaseline =
+        _awaitingExternalIndex != null &&
+        _awaitingExternalIndex == _awaitingExternalBaselineIndex;
     if (widget.selectedIndex != _awaitingExternalIndex &&
-        _consumeSupersededExternalIndex(widget.selectedIndex)) {
+        _consumeSupersededExternalIndex(
+          widget.selectedIndex,
+          includeExpired: awaitingMatchesBaseline,
+        )) {
       final awaitingExternalIndex = _awaitingExternalIndex;
       if (awaitingExternalIndex != null &&
           awaitingExternalIndex != _awaitingExternalBaselineIndex) {
@@ -246,22 +252,37 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   }
 
   void _markSupersededExternalIndex(int index) {
-    _supersededExternalCounts.update(
+    final now = WidgetsBinding.instance.currentSystemFrameTimeStamp;
+    _supersededExternalTimes.update(
       index,
-      (count) => count + 1,
-      ifAbsent: () => 1,
+      (times) => [...times, now],
+      ifAbsent: () => [now],
     );
   }
 
-  bool _consumeSupersededExternalIndex(int index) {
-    final count = _supersededExternalCounts[index];
-    if (count == null) {
+  bool _consumeSupersededExternalIndex(
+    int index, {
+    required bool includeExpired,
+  }) {
+    final times = _supersededExternalTimes[index];
+    if (times == null) {
       return false;
     }
-    if (count == 1) {
-      _supersededExternalCounts.remove(index);
+    final now = WidgetsBinding.instance.currentSystemFrameTimeStamp;
+    final activeTimes = includeExpired
+        ? times
+        : times
+              .where((time) => now - time <= const Duration(milliseconds: 250))
+              .toList();
+    if (activeTimes.isEmpty) {
+      _supersededExternalTimes.remove(index);
+      return false;
+    }
+    activeTimes.removeAt(0);
+    if (activeTimes.isEmpty) {
+      _supersededExternalTimes.remove(index);
     } else {
-      _supersededExternalCounts[index] = count - 1;
+      _supersededExternalTimes[index] = activeTimes;
     }
     return true;
   }
