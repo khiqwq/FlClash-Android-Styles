@@ -1,6 +1,8 @@
 import os
 import json
-import requests
+import mimetypes
+import uuid
+from urllib import request
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TAG = os.getenv("TAG")
@@ -59,13 +61,42 @@ if media:
     media[-1]["caption"] = text
     media[-1]["parse_mode"] = "Markdown"
 
-response = requests.post(
+boundary = uuid.uuid4().hex
+body = bytearray()
+
+
+def add_field(name, value):
+    body.extend(f"--{boundary}\r\n".encode())
+    body.extend(f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode())
+    body.extend(str(value).encode())
+    body.extend(b"\r\n")
+
+
+add_field("chat_id", CHAT_ID)
+add_field("media", json.dumps(media))
+
+for name, file_handle in files.items():
+    file_name = os.path.basename(file_handle.name)
+    content_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
+    body.extend(f"--{boundary}\r\n".encode())
+    body.extend(
+        f'Content-Disposition: form-data; name="{name}"; filename="{file_name}"\r\n'.encode()
+    )
+    body.extend(f"Content-Type: {content_type}\r\n\r\n".encode())
+    body.extend(file_handle.read())
+    body.extend(b"\r\n")
+
+body.extend(f"--{boundary}--\r\n".encode())
+http_request = request.Request(
     API_URL,
-    data={
-        "chat_id": CHAT_ID,
-        "media": json.dumps(media)
-    },
-    files=files
+    data=bytes(body),
+    headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    method="POST",
 )
 
-print("Response JSON:", response.json())
+try:
+    with request.urlopen(http_request) as response:
+        print("Response JSON:", json.loads(response.read().decode()))
+finally:
+    for file_handle in files.values():
+        file_handle.close()
