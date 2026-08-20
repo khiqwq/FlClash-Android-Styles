@@ -397,6 +397,28 @@ void main() {
     expect(callbacks, [1, 0]);
   });
 
+  testWidgets('pending selection survives an unchanged parent rebuild', (
+    tester,
+  ) async {
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(callbacks, [1]);
+
+    key.currentState!.rebuild();
+    await tester.pump();
+    await tester.tapAt(tester.getCenter(_item(0)));
+    await tester.pumpAndSettle();
+
+    expect(callbacks, [1, 0]);
+  });
+
   testWidgets('thumb backdrop captures and transforms the complete track', (
     tester,
   ) async {
