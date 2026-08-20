@@ -197,11 +197,8 @@ class InterfaceStyleSelector extends ConsumerWidget {
             .update(
               (state) => state.copyWith(
                 interfaceStyle: value,
-                enableMonetColors: value == InterfaceStyle.material
-                    ? true
-                    : state.enableMonetColors,
                 primaryColor:
-                    value == InterfaceStyle.material || state.enableMonetColors
+                    value == InterfaceStyle.miuix && state.enableMonetColors
                     ? null
                     : state.primaryColor,
               ),
