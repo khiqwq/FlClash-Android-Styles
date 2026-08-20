@@ -75,6 +75,13 @@ class _ToggleHarnessState extends State<_ToggleHarness> {
     });
   }
 
+  void update({int? selectedIndex, int? itemCount}) {
+    setState(() {
+      this.selectedIndex = selectedIndex ?? this.selectedIndex;
+      this.itemCount = itemCount ?? this.itemCount;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -426,6 +433,50 @@ void main() {
     expect(callbacks, [1, 0]);
   });
 
+  testWidgets('stale acknowledgement cannot override a completed reverse tap', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.tapAt(tester.getCenter(_item(0)));
+    await tester.pumpAndSettle();
+    expect(callbacks, [1, 0]);
+
+    key.currentState!.acknowledge(1);
+    await tester.pump();
+    expect(
+      tester
+          .getSemantics(_semantics(0))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+
+    key.currentState!.acknowledge(0);
+    await tester.pumpAndSettle();
+    expect(callbacks, [1, 0]);
+    expect(
+      tester
+          .getSemantics(_semantics(0))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    semanticsHandle.dispose();
+  });
+
   testWidgets('pending selection reconciles when items shrink', (tester) async {
     final semanticsHandle = tester.ensureSemantics();
     final callbacks = <int>[];
@@ -443,6 +494,8 @@ void main() {
     await tester.pump();
 
     expect(_item(2), findsNothing);
+    key.currentState!.acknowledge(2);
+    await tester.pump();
     expect(
       tester
           .getSemantics(_semantics(0))
@@ -488,6 +541,98 @@ void main() {
       true,
     );
     semanticsHandle.dispose();
+  });
+
+  testWidgets('removed pending index ignores simultaneous stale ack', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(2));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(callbacks, [2]);
+
+    key.currentState!.update(selectedIndex: 2, itemCount: 2);
+    await tester.pumpAndSettle();
+
+    expect(_item(2), findsNothing);
+    expect(
+      tester
+          .getSemantics(_semantics(0))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('regrown items accept a later authoritative selection', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(2));
+    await tester.pump(const Duration(milliseconds: 1));
+    key.currentState!.setItemCount(2);
+    await tester.pump();
+    key.currentState!.acknowledge(2);
+    await tester.pump();
+    expect(
+      tester
+          .getSemantics(_semantics(0))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+
+    key.currentState!.update(selectedIndex: 0, itemCount: 3);
+    await tester.pump();
+    key.currentState!.acknowledge(2);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .getSemantics(_semantics(2))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('unselected Liquid content keeps readable contrast', (
+    tester,
+  ) async {
+    await _pumpToggle(tester);
+    final iconTheme = tester.widget<IconTheme>(
+      find.descendant(of: _item(1), matching: find.byType(IconTheme)).last,
+    );
+    final foreground = iconTheme.data.color!;
+    final track = const Color(0xFF787878).withValues(alpha: 0.2);
+    final background = Color.alphaBlend(track, Colors.white);
+    final paintedForeground = Color.alphaBlend(foreground, background);
+    final lighter = paintedForeground.computeLuminance() + 0.05;
+    final darker = background.computeLuminance() + 0.05;
+    final contrast = lighter > darker ? lighter / darker : darker / lighter;
+    expect(contrast, greaterThanOrEqualTo(4.5));
   });
 
   testWidgets('thumb backdrop captures and transforms the complete track', (

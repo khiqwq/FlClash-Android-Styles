@@ -8,6 +8,7 @@ import 'package:fl_clash/models/common.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/widgets.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -443,7 +444,7 @@ class _HomePageViewState extends ConsumerState<_HomePageView> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _pageIndex);
+    _pageController = PageController(initialPage: max(_pageIndex, 0));
     ref.listenManual(currentPageLabelProvider, (prev, next) {
       if (prev != next) {
         _toPage(next);
@@ -454,7 +455,9 @@ class _HomePageViewState extends ConsumerState<_HomePageView> {
   @override
   void didUpdateWidget(covariant _HomePageView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.navigationItems.length != widget.navigationItems.length) {
+    final oldLabels = oldWidget.navigationItems.map((item) => item.label);
+    final newLabels = widget.navigationItems.map((item) => item.label);
+    if (!listEquals(oldLabels.toList(), newLabels.toList())) {
       _updatePageController();
     }
   }
@@ -491,8 +494,20 @@ class _HomePageViewState extends ConsumerState<_HomePageView> {
   }
 
   void _updatePageController() {
-    final pageLabel = ref.read(currentPageLabelProvider);
-    _toPage(pageLabel, true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.navigationItems.isEmpty) {
+        return;
+      }
+      final currentPageLabel = ref.read(currentPageLabelProvider);
+      final pageLabel =
+          widget.navigationItems.any((item) => item.label == currentPageLabel)
+          ? currentPageLabel
+          : widget.navigationItems.first.label;
+      _toPage(pageLabel, true);
+      if (pageLabel != currentPageLabel) {
+        ref.read(currentPageLabelProvider.notifier).toPage(pageLabel);
+      }
+    });
   }
 
   @override

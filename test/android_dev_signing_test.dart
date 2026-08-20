@@ -52,8 +52,34 @@ void main() {
       workflow,
       contains('nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779'),
     );
-    expect(workflow, isNot(contains('subosito/flutter-action@v2')));
-    expect(workflow, isNot(contains('nttld/setup-ndk@v1')));
+    expect(
+      workflow,
+      contains('actions/checkout@11d5960a326750d5838078e36cf38b85af677262'),
+    );
+    expect(
+      workflow,
+      contains('actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3'),
+    );
+    expect(
+      workflow,
+      contains('actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff'),
+    );
+    expect(
+      workflow,
+      contains(
+        'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
+      ),
+    );
+    for (final movableTag in <String>[
+      'actions/checkout@v4',
+      'actions/setup-java@v4',
+      'actions/setup-go@v5',
+      'actions/upload-artifact@v4',
+      'subosito/flutter-action@v2',
+      'nttld/setup-ndk@v1',
+    ]) {
+      expect(workflow, isNot(contains(movableTag)));
+    }
     expect(workflow, contains('secrets.DEV_KEYSTORE'));
     expect(workflow, contains("DEV_BUILD: 'true'"));
   });
