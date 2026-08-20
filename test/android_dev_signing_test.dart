@@ -121,6 +121,18 @@ void main() {
     expect(releaseWorkflow, isNot(contains('pip install requests')));
     expect(
       releaseWorkflow,
+      isNot(contains('cpina/github-action-push-to-another-repository')),
+    );
+    expect(releaseWorkflow, contains('StrictHostKeyChecking=yes'));
+    expect(
+      releaseWorkflow,
+      contains(
+        'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl',
+      ),
+    );
+    expect(releaseWorkflow, isNot(contains(r'echo "${{ github.ref_name }}"')));
+    expect(
+      releaseWorkflow,
       contains(
         '2859e236b6c1c6073773752678c52e8e902a9503ae9beed6729ca999c376841c',
       ),

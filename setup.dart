@@ -5,6 +5,9 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
 const flutterDistributorRevision = 'cdeeef2d8f8325bb6ae0bc86b39f56e4325d1a58';
+const appdmgVersion = '0.6.6';
+const appImageToolSha256 =
+    'b90f4a8b18967545fda78a445b27680a1642f1ef9488ced28b65398f2be7add2';
 
 const _allTargets = <String, String>{
   'android': 'apk',
@@ -236,11 +239,29 @@ Future<int> _ensureDependencies(String platform, String arch) async {
 
 Future<int> _ensureMacosDependencies() async {
   if (await _hasCommand('appdmg')) {
-    stdout.writeln('appdmg already installed, skipping.');
-    return 0;
+    final installed = await Process.run('npm', [
+      'list',
+      '-g',
+      '--depth=0',
+      '--json',
+      'appdmg',
+    ]);
+    if (installed.exitCode == 0) {
+      final packages = jsonDecode(installed.stdout as String);
+      final dependencies = packages['dependencies'] as Map<String, dynamic>?;
+      final appdmg = dependencies?['appdmg'] as Map<String, dynamic>?;
+      if (appdmg?['version'] == appdmgVersion) {
+        stdout.writeln('appdmg $appdmgVersion already installed, skipping.');
+        return 0;
+      }
+    }
   }
-  stdout.writeln('Installing appdmg (DMG creator)...');
-  final result = await Process.run('npm', ['install', '-g', 'appdmg']);
+  stdout.writeln('Installing appdmg $appdmgVersion (DMG creator)...');
+  final result = await Process.run('npm', [
+    'install',
+    '-g',
+    'appdmg@$appdmgVersion',
+  ]);
   if (result.exitCode != 0) {
     stderr.write(result.stderr);
   }
@@ -302,25 +323,48 @@ Future<int> _ensureLinuxDependencies(String arch) async {
 
   if (arch == 'amd64') {
     const appimagetool = '/usr/local/bin/appimagetool';
-    if (File(appimagetool).existsSync()) {
-      stdout.writeln('appimagetool already installed, skipping.');
+    const appImageToolUrl =
+        'https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage';
+    final appImageToolFile = File(appimagetool);
+    if (appImageToolFile.existsSync() &&
+        await _hasExpectedSha256(appimagetool, appImageToolSha256)) {
+      stdout.writeln('Verified appimagetool already installed, skipping.');
       return 0;
     }
-    stdout.writeln('Downloading appimagetool...');
-    final downloadName = arch == 'amd64' ? 'x86_64' : 'aarch64';
+    if (appImageToolFile.existsSync()) {
+      await appImageToolFile.delete();
+    }
+    stdout.writeln('Downloading verified appimagetool...');
     final dlResult = await Process.run('wget', [
       '-O',
       appimagetool,
-      'https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$downloadName.AppImage',
+      appImageToolUrl,
     ]);
     if (dlResult.exitCode != 0) {
       stderr.write(dlResult.stderr);
       return dlResult.exitCode;
     }
-    await Process.run('chmod', ['+x', appimagetool]);
+    if (!await _hasExpectedSha256(appimagetool, appImageToolSha256)) {
+      await appImageToolFile.delete();
+      stderr.writeln('appimagetool SHA256 verification failed.');
+      return 1;
+    }
+    final chmodResult = await Process.run('chmod', ['+x', appimagetool]);
+    if (chmodResult.exitCode != 0) {
+      stderr.write(chmodResult.stderr);
+      return chmodResult.exitCode;
+    }
   }
 
   return 0;
+}
+
+Future<bool> _hasExpectedSha256(String path, String expected) async {
+  final result = await Process.run('sha256sum', [path]);
+  if (result.exitCode != 0) return false;
+  final output = (result.stdout as String).trim();
+  if (output.isEmpty) return false;
+  return output.split(RegExp(r'\s+')).first.toLowerCase() == expected;
 }
 
 Future<bool> _isDebianPackageInstalled(String pkg) async {
