@@ -513,7 +513,8 @@ ColorScheme genColorScheme(
       theme.d == InterfaceStyle.miuix) {
     return miuixDefaultColorScheme(brightness);
   }
-  final useMonetColors = color == null && (theme.c || ignoreConfig);
+  final useMonetColors =
+      theme.c && color == null && (theme.a == null || ignoreConfig);
   final seedColor = useMonetColors
       ? globalState.corePalette
                 ?.toColorScheme(brightness: brightness)

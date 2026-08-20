@@ -66,6 +66,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   int? _awaitingExternalIndex;
   int? _awaitingExternalBaselineIndex;
   final Set<int> _supersededExternalIndices = {};
+  bool _acceptUnchangedExternalSelection = false;
   int? _activePointer;
   int? _directTapIndex;
   bool _didDrag = false;
@@ -148,6 +149,8 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
         widget.selectedIndex != _awaitingExternalIndex &&
         (_awaitingExternalIndex == null ||
             _awaitingExternalIndex == _awaitingExternalBaselineIndex)) {
+      _supersededExternalIndices.remove(widget.selectedIndex);
+      _acceptUnchangedExternalSelection = true;
       return;
     }
     if (_activePointer != null) {
@@ -156,9 +159,11 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
           _clearAwaitingExternalIndex();
           return;
         }
-        if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
+        if (selectedIndex == _clampIndex(oldWidget.selectedIndex) &&
+            !_acceptUnchangedExternalSelection) {
           return;
         }
+        _acceptUnchangedExternalSelection = false;
       }
       _deferredExternalIndex = selectedIndex == _committedIndex
           ? null
@@ -170,9 +175,11 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
         _clearAwaitingExternalIndex();
         return;
       }
-      if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
+      if (selectedIndex == _clampIndex(oldWidget.selectedIndex) &&
+          !_acceptUnchangedExternalSelection) {
         return;
       }
+      _acceptUnchangedExternalSelection = false;
       _clearAwaitingExternalIndex();
     }
     if (selectedIndex == _committedIndex &&
@@ -254,6 +261,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     _committedIndex = selectedIndex;
     _awaitingExternalIndex = null;
     _awaitingExternalBaselineIndex = null;
+    _acceptUnchangedExternalSelection = false;
     _deferredExternalIndex = null;
     _fraction = selectedIndex.toDouble();
     _animateToValue(_fraction);
