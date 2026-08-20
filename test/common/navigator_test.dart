@@ -7,6 +7,7 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/pop_scope.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -122,6 +123,7 @@ void main() {
           container: container,
           child: MaterialApp(
             navigatorKey: navigatorKey,
+            builder: _predictiveBackBuilder,
             theme: ThemeData(
               pageTransitionsTheme: buildPageTransitionsTheme(
                 predictiveBack: true,
@@ -243,6 +245,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           navigatorObservers: [observer],
+          builder: _predictiveBackBuilder,
           theme: ThemeData(
             pageTransitionsTheme: buildPageTransitionsTheme(
               predictiveBack: true,
@@ -301,7 +304,7 @@ void main() {
     }
   });
 
-  testWidgets('changing transition mode aborts an active gesture safely', (
+  testWidgets('theme rebuild then commit keeps the accepted route active', (
     tester,
   ) async {
     try {
@@ -315,6 +318,7 @@ void main() {
           builder: (context, enabled, _) {
             return MaterialApp(
               navigatorKey: navigatorKey,
+              builder: _predictiveBackBuilder,
               theme: ThemeData(
                 pageTransitionsTheme: buildPageTransitionsTheme(
                   predictiveBack: enabled,
@@ -354,6 +358,11 @@ void main() {
       expect(find.text('source'), findsNothing);
       expect(navigatorKey.currentState!.userGestureInProgress, isFalse);
 
+      await _sendBackGesture(tester, 'commitBackGesture');
+      await tester.pumpAndSettle();
+      expect(find.text('destination'), findsOneWidget);
+      expect(navigatorKey.currentState!.canPop(), isTrue);
+
       navigatorKey.currentState!.pop();
       await tester.pumpAndSettle();
       expect(find.text('source'), findsOneWidget);
@@ -363,15 +372,19 @@ void main() {
     }
   });
 
-  testWidgets('new navigation aborts an active gesture without hiding route', (
+  testWidgets('push restores route animation, paint, and hit test', (
     tester,
   ) async {
     try {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       final navigatorKey = GlobalKey<NavigatorState>();
+      late CommonRoute<void> destinationRoute;
+      var destinationPaints = 0;
+      var destinationHits = 0;
       await tester.pumpWidget(
         MaterialApp(
           navigatorKey: navigatorKey,
+          builder: _predictiveBackBuilder,
           theme: ThemeData(
             pageTransitionsTheme: buildPageTransitionsTheme(
               predictiveBack: true,
@@ -381,11 +394,23 @@ void main() {
             builder: (context) {
               return TextButton(
                 onPressed: () {
-                  Navigator.of(context).push(
-                    CommonRoute<void>(
-                      builder: (_) => const Scaffold(body: Text('destination')),
+                  destinationRoute = CommonRoute<void>(
+                    builder: (_) => _PaintProbe(
+                      key: const ValueKey('destination-paint'),
+                      onPaint: () {
+                        destinationPaints++;
+                      },
+                      child: Scaffold(
+                        body: TextButton(
+                          onPressed: () {
+                            destinationHits++;
+                          },
+                          child: const Text('destination'),
+                        ),
+                      ),
                     ),
                   );
+                  Navigator.of(context).push(destinationRoute);
                 },
                 child: const Text('source'),
               );
@@ -408,11 +433,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('interrupting route'), findsOneWidget);
       expect(navigatorKey.currentState!.userGestureInProgress, isFalse);
+      expect(destinationRoute.animation!.value, 1);
+      expect(destinationRoute.animation!.status, AnimationStatus.completed);
+      expect(destinationRoute.overlayEntries.first.opaque, isTrue);
 
+      await _sendBackGesture(tester, 'commitBackGesture');
+      await tester.pumpAndSettle();
+      expect(find.text('interrupting route'), findsOneWidget);
+
+      destinationPaints = 0;
       navigatorKey.currentState!.pop();
       await tester.pumpAndSettle();
       expect(find.text('destination'), findsOneWidget);
       expect(find.text('source'), findsNothing);
+      expect(destinationPaints, greaterThan(0));
+      expect(find.text('destination').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('destination'));
+      expect(destinationHits, 1);
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -420,7 +457,7 @@ void main() {
   });
 
   testWidgets(
-    'removing an active gesture route stops navigator gesture state',
+    'remove then terminal commit is consumed after visual owner disposal',
     (tester) async {
       try {
         debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -429,6 +466,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             navigatorKey: navigatorKey,
+            builder: _predictiveBackBuilder,
             theme: ThemeData(
               pageTransitionsTheme: buildPageTransitionsTheme(
                 predictiveBack: true,
@@ -462,6 +500,18 @@ void main() {
         await tester.pump();
         expect(find.text('source'), findsOneWidget);
         expect(navigatorKey.currentState!.userGestureInProgress, isFalse);
+
+        navigatorKey.currentState!.push(
+          CommonRoute<void>(
+            builder: (_) =>
+                const Scaffold(body: Text('post-remove destination')),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await _sendBackGesture(tester, 'commitBackGesture');
+        await tester.pumpAndSettle();
+        expect(find.text('post-remove destination'), findsOneWidget);
+        expect(navigatorKey.currentState!.canPop(), isTrue);
         expect(tester.takeException(), isNull);
       } finally {
         debugDefaultTargetPlatformOverride = null;
@@ -469,15 +519,20 @@ void main() {
     },
   );
 
-  testWidgets('commit after an interrupt cancels instead of hiding old route', (
+  testWidgets('replace then commit keeps replacement painted and active', (
     tester,
   ) async {
     try {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       final navigatorKey = GlobalKey<NavigatorState>();
+      late CommonRoute<void> destinationRoute;
+      late CommonRoute<void> replacementRoute;
+      var replacementPaints = 0;
+      var replacementHits = 0;
       await tester.pumpWidget(
         MaterialApp(
           navigatorKey: navigatorKey,
+          builder: _predictiveBackBuilder,
           theme: ThemeData(
             pageTransitionsTheme: buildPageTransitionsTheme(
               predictiveBack: true,
@@ -487,11 +542,10 @@ void main() {
             builder: (context) {
               return TextButton(
                 onPressed: () {
-                  Navigator.of(context).push(
-                    CommonRoute<void>(
-                      builder: (_) => const Scaffold(body: Text('destination')),
-                    ),
+                  destinationRoute = CommonRoute<void>(
+                    builder: (_) => const Scaffold(body: Text('destination')),
                   );
+                  Navigator.of(context).push(destinationRoute);
                 },
                 child: const Text('source'),
               );
@@ -503,25 +557,185 @@ void main() {
       await tester.pumpAndSettle();
 
       await _sendBackGesture(tester, 'startBackGesture', progress: 0);
-      navigatorKey.currentState!.push(
-        CommonRoute<void>(
-          builder: (_) => const Scaffold(body: Text('interrupting route')),
+      replacementRoute = CommonRoute<void>(
+        builder: (_) => _PaintProbe(
+          key: const ValueKey('replacement-paint'),
+          onPaint: () {
+            replacementPaints++;
+          },
+          child: Scaffold(
+            body: TextButton(
+              onPressed: () {
+                replacementHits++;
+              },
+              child: const Text('replacement route'),
+            ),
+          ),
         ),
       );
+      navigatorKey.currentState!.replace(
+        oldRoute: destinationRoute,
+        newRoute: replacementRoute,
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(find.text('destination', skipOffstage: false), findsNothing);
+      expect(replacementRoute.animation!.value, 1);
+      expect(replacementRoute.animation!.status, AnimationStatus.completed);
+      expect(replacementRoute.overlayEntries.first.opaque, isTrue);
+      expect(replacementPaints, greaterThan(0));
+
       await _sendBackGesture(tester, 'commitBackGesture');
       await tester.pumpAndSettle();
 
-      expect(find.text('interrupting route'), findsOneWidget);
+      expect(find.text('replacement route'), findsOneWidget);
+      expect(find.text('replacement route').hitTestable(), findsOneWidget);
       expect(navigatorKey.currentState!.userGestureInProgress, isFalse);
+      await tester.tap(find.text('replacement route'));
+      expect(replacementHits, 1);
       navigatorKey.currentState!.pop();
       await tester.pumpAndSettle();
-      expect(find.text('destination'), findsOneWidget);
-      expect(find.text('source'), findsNothing);
+      expect(find.text('source'), findsOneWidget);
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets(
+    'programmatic pop then commit is consumed after visual owner disposal',
+    (tester) async {
+      try {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        final navigatorKey = GlobalKey<NavigatorState>();
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorKey: navigatorKey,
+            builder: _predictiveBackBuilder,
+            theme: ThemeData(
+              pageTransitionsTheme: buildPageTransitionsTheme(
+                predictiveBack: true,
+              ),
+            ),
+            home: Builder(
+              builder: (context) {
+                return TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      CommonRoute<void>(
+                        builder: (_) =>
+                            const Scaffold(body: Text('destination')),
+                      ),
+                    );
+                  },
+                  child: const Text('source'),
+                );
+              },
+            ),
+          ),
+        );
+        await tester.tap(find.text('source'));
+        await tester.pumpAndSettle();
+
+        expect(
+          await _sendBackGesture(tester, 'startBackGesture', progress: 0),
+          true,
+        );
+        navigatorKey.currentState!.pop();
+        await tester.pumpAndSettle();
+        expect(find.text('source'), findsOneWidget);
+        expect(navigatorKey.currentState!.userGestureInProgress, isFalse);
+
+        navigatorKey.currentState!.push(
+          CommonRoute<void>(
+            builder: (_) => const Scaffold(body: Text('post-pop destination')),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await _sendBackGesture(tester, 'commitBackGesture');
+        await tester.pumpAndSettle();
+        expect(find.text('post-pop destination'), findsOneWidget);
+        expect(navigatorKey.currentState!.canPop(), isTrue);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  for (final replaceRoute in [false, true]) {
+    final operation = replaceRoute ? 'replace' : 'remove';
+    testWidgets(
+      'cancel then $operation balances observer and hero gestures once',
+      (tester) async {
+        try {
+          debugDefaultTargetPlatformOverride = TargetPlatform.android;
+          final navigatorKey = GlobalKey<NavigatorState>();
+          final observer = _CountingNavigatorObserver();
+          final heroController = _CountingHeroController();
+          late CommonRoute<void> destinationRoute;
+          await tester.pumpWidget(
+            MaterialApp(
+              navigatorKey: navigatorKey,
+              navigatorObservers: [observer, heroController],
+              builder: _predictiveBackBuilder,
+              theme: ThemeData(
+                pageTransitionsTheme: buildPageTransitionsTheme(
+                  predictiveBack: true,
+                ),
+              ),
+              home: Builder(
+                builder: (context) {
+                  return TextButton(
+                    onPressed: () {
+                      destinationRoute = CommonRoute<void>(
+                        builder: (_) =>
+                            const Scaffold(body: Text('destination')),
+                      );
+                      Navigator.of(context).push(destinationRoute);
+                    },
+                    child: const Text('source'),
+                  );
+                },
+              ),
+            ),
+          );
+          await tester.tap(find.text('source'));
+          await tester.pumpAndSettle();
+          observer.reset();
+          heroController.reset();
+
+          expect(
+            await _sendBackGesture(tester, 'startBackGesture', progress: 0),
+            true,
+          );
+          destinationRoute.handleUpdateBackGestureProgress(progress: 0.5);
+          await _sendBackGesture(tester, 'cancelBackGesture');
+          if (replaceRoute) {
+            navigatorKey.currentState!.replace(
+              oldRoute: destinationRoute,
+              newRoute: CommonRoute<void>(
+                builder: (_) => const Scaffold(body: Text('replacement route')),
+              ),
+            );
+          } else {
+            navigatorKey.currentState!.removeRoute(destinationRoute);
+          }
+          await tester.pump();
+          await tester.pumpAndSettle();
+
+          expect(navigatorKey.currentState!.userGestureInProgress, isFalse);
+          expect(observer.userGestureStartCount, 1);
+          expect(observer.userGestureStopCount, 1);
+          expect(heroController.userGestureStartCount, 1);
+          expect(heroController.userGestureStopCount, 1);
+          expect(tester.takeException(), isNull);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+  }
 
   testWidgets('predictive commit pops once with the route current result', (
     tester,
@@ -533,6 +747,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           navigatorObservers: [observer],
+          builder: _predictiveBackBuilder,
           theme: ThemeData(
             pageTransitionsTheme: buildPageTransitionsTheme(
               predictiveBack: true,
@@ -680,6 +895,7 @@ void main() {
       var attempts = 0;
       await tester.pumpWidget(
         MaterialApp(
+          builder: _predictiveBackBuilder,
           theme: ThemeData(
             pageTransitionsTheme: buildPageTransitionsTheme(
               predictiveBack: true,
@@ -764,6 +980,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           navigatorObservers: [observer],
+          builder: _predictiveBackBuilder,
           theme: ThemeData(
             pageTransitionsTheme: buildPageTransitionsTheme(
               predictiveBack: true,
@@ -860,6 +1077,7 @@ void main() {
 
 Widget _buildPredictiveBackApp() {
   return MaterialApp(
+    builder: _predictiveBackBuilder,
     theme: ThemeData(
       pageTransitionsTheme: buildPageTransitionsTheme(predictiveBack: true),
     ),
@@ -878,6 +1096,10 @@ Widget _buildPredictiveBackApp() {
       },
     ),
   );
+}
+
+Widget _predictiveBackBuilder(BuildContext _, Widget? child) {
+  return PredictiveBackCoordinator(child: child!);
 }
 
 Future<Object?> _sendBackGesture(
@@ -913,15 +1135,90 @@ Future<Object?> _sendBackGesture(
 
 class _CountingNavigatorObserver extends NavigatorObserver {
   int popCount = 0;
+  int userGestureStartCount = 0;
+  int userGestureStopCount = 0;
 
   void reset() {
     popCount = 0;
+    userGestureStartCount = 0;
+    userGestureStopCount = 0;
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     popCount++;
     super.didPop(route, previousRoute);
+  }
+
+  @override
+  void didStartUserGesture(
+    Route<dynamic> route,
+    Route<dynamic>? previousRoute,
+  ) {
+    userGestureStartCount++;
+    super.didStartUserGesture(route, previousRoute);
+  }
+
+  @override
+  void didStopUserGesture() {
+    userGestureStopCount++;
+    super.didStopUserGesture();
+  }
+}
+
+class _CountingHeroController extends HeroController {
+  int userGestureStartCount = 0;
+  int userGestureStopCount = 0;
+
+  void reset() {
+    userGestureStartCount = 0;
+    userGestureStopCount = 0;
+  }
+
+  @override
+  void didStartUserGesture(
+    Route<dynamic> route,
+    Route<dynamic>? previousRoute,
+  ) {
+    userGestureStartCount++;
+    super.didStartUserGesture(route, previousRoute);
+  }
+
+  @override
+  void didStopUserGesture() {
+    userGestureStopCount++;
+    super.didStopUserGesture();
+  }
+}
+
+class _PaintProbe extends SingleChildRenderObjectWidget {
+  const _PaintProbe({super.key, required this.onPaint, required super.child});
+
+  final VoidCallback onPaint;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderPaintProbe(onPaint);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderPaintProbe renderObject,
+  ) {
+    renderObject.onPaint = onPaint;
+  }
+}
+
+class _RenderPaintProbe extends RenderProxyBox {
+  _RenderPaintProbe(this.onPaint);
+
+  VoidCallback onPaint;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    onPaint();
+    super.paint(context, offset);
   }
 }
 

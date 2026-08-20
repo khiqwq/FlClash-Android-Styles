@@ -142,6 +142,237 @@ class DirectPreviousPredictiveBackPageTransitionsBuilder
   }
 }
 
+class PredictiveBackCoordinator extends StatefulWidget {
+  const PredictiveBackCoordinator({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<PredictiveBackCoordinator> createState() =>
+      _PredictiveBackCoordinatorState();
+}
+
+class _PredictiveBackCoordinatorState extends State<PredictiveBackCoordinator>
+    with WidgetsBindingObserver {
+  final Set<_DirectPreviousBackPreviewState> _owners = {};
+  _PredictiveBackTransaction? _transaction;
+  _PredictiveBackTransaction? _settlingTransaction;
+  int _nextTransactionId = 0;
+
+  void _attachOwner(_DirectPreviousBackPreviewState owner) {
+    _owners.add(owner);
+  }
+
+  void _detachOwner(_DirectPreviousBackPreviewState owner) {
+    _owners.remove(owner);
+    _ownerBecameUnavailable(owner);
+  }
+
+  void _ownerBecameUnavailable(_DirectPreviousBackPreviewState owner) {
+    final transaction = _transaction;
+    if (transaction != null &&
+        identical(transaction.owner, owner) &&
+        !transaction.aborted) {
+      _abortTransaction(transaction, rebuild: false, deferOverlayRestore: true);
+    }
+  }
+
+  void _abortTransaction(
+    _PredictiveBackTransaction transaction, {
+    required bool rebuild,
+    required bool deferOverlayRestore,
+  }) {
+    if (transaction.aborted) {
+      return;
+    }
+    transaction.aborted = true;
+    _settlingTransaction = transaction;
+    transaction.owner._forceAbort(
+      transaction.id,
+      transaction.navigator,
+      transaction.route,
+      rebuild: rebuild,
+      deferOverlayRestore: deferOverlayRestore,
+    );
+    _scheduleSettlementCheck(transaction);
+  }
+
+  void _completeSettlement(_PredictiveBackTransaction transaction) {
+    if (!identical(_settlingTransaction, transaction)) {
+      return;
+    }
+    _settlingTransaction = null;
+    transaction.owner._forceCompleteSettlement(
+      transaction.id,
+      transaction.navigator,
+      transaction.route,
+    );
+  }
+
+  void _scheduleSettlementCheck(_PredictiveBackTransaction transaction) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !identical(_settlingTransaction, transaction)) {
+        return;
+      }
+      if (!transaction.navigator.userGestureInProgress) {
+        _settlingTransaction = null;
+        transaction.owner._finishSettlement(transaction.id);
+        return;
+      }
+      final canContinue = transaction.owner._canContinueSettlement(
+        transaction.id,
+        transaction.route,
+      );
+      final animationCompleted = transaction.owner._animationCompleted(
+        transaction.id,
+        transaction.route,
+      );
+      if (!canContinue || animationCompleted) {
+        if (transaction.settlementChecks == 0) {
+          transaction.settlementChecks++;
+          _scheduleSettlementCheck(transaction);
+          return;
+        }
+        _completeSettlement(transaction);
+        return;
+      }
+      _scheduleSettlementCheck(transaction);
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    if (backEvent.isButtonEvent) {
+      return false;
+    }
+    if (_transaction != null) {
+      return true;
+    }
+    for (final owner in _owners.toList().reversed) {
+      if (!owner._isEnabled) {
+        continue;
+      }
+      final transaction = _PredictiveBackTransaction(
+        id: ++_nextTransactionId,
+        owner: owner,
+        navigator: owner._navigator!,
+        route: owner._route,
+      );
+      _transaction = transaction;
+      if (owner._startGesture(transaction.id, transaction.route)) {
+        return true;
+      }
+      _transaction = null;
+    }
+    return false;
+  }
+
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
+    final transaction = _transaction;
+    if (transaction == null || transaction.aborted) {
+      return;
+    }
+    if (!transaction.owner._canContinueGesture(
+      transaction.id,
+      transaction.route,
+    )) {
+      _abortTransaction(transaction, rebuild: true, deferOverlayRestore: false);
+      return;
+    }
+    transaction.owner._updateGesture(transaction.id, transaction.route);
+  }
+
+  @override
+  void handleCancelBackGesture() {
+    final transaction = _transaction;
+    if (transaction == null) {
+      return;
+    }
+    _transaction = null;
+    if (transaction.aborted) {
+      return;
+    }
+    if (!transaction.owner._canContinueGesture(
+      transaction.id,
+      transaction.route,
+    )) {
+      _abortTransaction(transaction, rebuild: true, deferOverlayRestore: false);
+      return;
+    }
+    _settlingTransaction = transaction;
+    transaction.owner._cancelGesture(transaction.id, transaction.route);
+    _scheduleSettlementCheck(transaction);
+  }
+
+  @override
+  void handleCommitBackGesture() {
+    final transaction = _transaction;
+    if (transaction == null) {
+      return;
+    }
+    _transaction = null;
+    if (transaction.aborted) {
+      return;
+    }
+    if (!transaction.owner._canContinueGesture(
+      transaction.id,
+      transaction.route,
+    )) {
+      _abortTransaction(transaction, rebuild: true, deferOverlayRestore: false);
+      return;
+    }
+    transaction.owner._commitGesture(transaction.id, transaction.route);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    final transaction = _transaction;
+    _transaction = null;
+    if (transaction != null && !transaction.aborted) {
+      _abortTransaction(
+        transaction,
+        rebuild: false,
+        deferOverlayRestore: false,
+      );
+    }
+    final settlingTransaction = _settlingTransaction;
+    if (settlingTransaction != null) {
+      _completeSettlement(settlingTransaction);
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
+}
+
+class _PredictiveBackTransaction {
+  _PredictiveBackTransaction({
+    required this.id,
+    required this.owner,
+    required this.navigator,
+    required this.route,
+  });
+
+  final int id;
+  final _DirectPreviousBackPreviewState owner;
+  final NavigatorState navigator;
+  final PageRoute<dynamic> route;
+  bool aborted = false;
+  int settlementChecks = 0;
+}
+
 class _DirectPreviousBackPreview extends StatefulWidget {
   final PageRoute<dynamic> route;
   final Color surface;
@@ -158,151 +389,249 @@ class _DirectPreviousBackPreview extends StatefulWidget {
       _DirectPreviousBackPreviewState();
 }
 
-class _DirectPreviousBackPreviewState extends State<_DirectPreviousBackPreview>
-    with WidgetsBindingObserver {
-  bool _acceptedGesture = false;
+class _DirectPreviousBackPreviewState
+    extends State<_DirectPreviousBackPreview> {
+  _PredictiveBackCoordinatorState? _coordinator;
+  int? _activeTransactionId;
+  int? _settlingTransactionId;
+  int? _visualTransactionId;
+  int _visualRevision = 0;
   bool _previousRouteVisible = false;
   bool _wasCurrent = false;
-  NavigatorState? _gestureNavigator;
-  int _gestureRevision = 0;
 
   bool get _isEnabled {
-    return widget.route.isCurrent && widget.route.popGestureEnabled;
+    return _navigator != null &&
+        widget.route.isCurrent &&
+        widget.route.popGestureEnabled;
   }
 
-  void _updateOverlayOpacity(bool previousRouteVisible) {
-    final entries = widget.route.overlayEntries;
-    if (entries.isNotEmpty) {
-      entries.first.opaque = previousRouteVisible ? false : widget.route.opaque;
-    }
+  NavigatorState? get _navigator {
+    return widget.route.navigator;
   }
 
-  void _scheduleGestureAbort(
-    bool wasAccepted,
-    NavigatorState? gestureNavigator,
-    int revision,
+  PageRoute<dynamic> get _route {
+    return widget.route;
+  }
+
+  bool _animationCompleted(int transactionId, PageRoute<dynamic> route) {
+    return _settlingTransactionId == transactionId &&
+        route.animation?.status == AnimationStatus.completed;
+  }
+
+  void _updateOverlayOpacity(
+    PageRoute<dynamic> route,
+    bool previousRouteVisible,
   ) {
-    final route = widget.route;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (revision != _gestureRevision) {
-        return;
-      }
-      final entries = route.overlayEntries;
-      if (entries.isNotEmpty) {
-        entries.first.opaque = route.opaque;
-      }
-      if (!wasAccepted) {
-        return;
-      }
-      if (route.isActive) {
-        route.handleCancelBackGesture();
-      } else if (gestureNavigator?.userGestureInProgress == true) {
-        gestureNavigator!.didStopUserGesture();
-      }
-    });
+    final entries = route.overlayEntries;
+    if (entries.isNotEmpty) {
+      entries.first.opaque = previousRouteVisible ? false : route.opaque;
+    }
   }
 
-  void _setPreviousRouteVisible(bool value, {bool rebuild = true}) {
-    if (_previousRouteVisible == value) {
-      return;
-    }
-    _previousRouteVisible = value;
-    if (rebuild && mounted) {
+  void _restoreVisual(
+    int transactionId,
+    PageRoute<dynamic> route, {
+    required bool rebuild,
+    required bool deferOverlayRestore,
+  }) {
+    _visualTransactionId = transactionId;
+    final revision = ++_visualRevision;
+    final visibilityChanged = _previousRouteVisible;
+    _previousRouteVisible = false;
+    if (visibilityChanged && rebuild && mounted) {
       setState(() {});
     }
-    _updateOverlayOpacity(value);
-  }
-
-  void _abortGesture({bool rebuild = true, bool deferOverlayRestore = false}) {
-    final wasAccepted = _acceptedGesture;
-    final gestureNavigator = _gestureNavigator;
-    final revision = ++_gestureRevision;
-    _acceptedGesture = false;
-    _gestureNavigator = null;
     if (deferOverlayRestore) {
-      _previousRouteVisible = false;
-      _scheduleGestureAbort(wasAccepted, gestureNavigator, revision);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_visualTransactionId != transactionId ||
+            _visualRevision != revision) {
+          return;
+        }
+        _updateOverlayOpacity(route, false);
+      });
     } else {
-      _setPreviousRouteVisible(false, rebuild: rebuild);
-      if (wasAccepted) {
-        widget.route.handleCancelBackGesture();
-      }
+      _updateOverlayOpacity(route, false);
     }
   }
 
-  @override
-  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
-    final gestureInProgress = !backEvent.isButtonEvent && _isEnabled;
-    if (!gestureInProgress) {
+  void _showPreview(int transactionId, PageRoute<dynamic> route) {
+    _visualTransactionId = transactionId;
+    _visualRevision++;
+    final visibilityChanged = !_previousRouteVisible;
+    _previousRouteVisible = true;
+    if (visibilityChanged && mounted) {
+      setState(() {});
+    }
+    _updateOverlayOpacity(route, true);
+  }
+
+  void _forceAnimationCompleted(PageRoute<dynamic> route) {
+    if (!route.isActive) {
+      return;
+    }
+    route.handleUpdateBackGestureProgress(progress: 0);
+  }
+
+  bool _startGesture(int transactionId, PageRoute<dynamic> route) {
+    if (!_isEnabled || !identical(widget.route, route)) {
       return false;
     }
-    _acceptedGesture = true;
-    _gestureRevision++;
-    _gestureNavigator = widget.route.navigator;
-    widget.route.handleStartBackGesture(progress: 0);
-    _setPreviousRouteVisible(true);
+    _activeTransactionId = transactionId;
+    _settlingTransactionId = null;
+    route.handleStartBackGesture(progress: 0);
+    _showPreview(transactionId, route);
     return true;
   }
 
-  @override
-  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
-    if (!_acceptedGesture) {
-      return;
-    }
-    widget.route.handleUpdateBackGestureProgress(progress: 0);
-    _setPreviousRouteVisible(true);
+  bool _canContinueGesture(int transactionId, PageRoute<dynamic> route) {
+    return _activeTransactionId == transactionId &&
+        identical(widget.route, route) &&
+        route.isActive &&
+        route.isCurrent;
   }
 
-  @override
-  void handleCancelBackGesture() {
-    if (!_acceptedGesture) {
-      return;
-    }
-    _acceptedGesture = false;
-    _gestureRevision++;
-    _gestureNavigator = null;
-    _setPreviousRouteVisible(false);
-    widget.route.handleCancelBackGesture();
+  bool _canContinueSettlement(int transactionId, PageRoute<dynamic> route) {
+    return _settlingTransactionId == transactionId &&
+        identical(widget.route, route) &&
+        route.isActive &&
+        route.isCurrent;
   }
 
-  @override
-  void handleCommitBackGesture() {
-    if (!_acceptedGesture) {
+  void _updateGesture(int transactionId, PageRoute<dynamic> route) {
+    if (_activeTransactionId != transactionId ||
+        !identical(widget.route, route)) {
       return;
     }
-    if (!widget.route.isCurrent) {
-      _abortGesture();
+    route.handleUpdateBackGestureProgress(progress: 0);
+    _showPreview(transactionId, route);
+  }
+
+  void _cancelGesture(int transactionId, PageRoute<dynamic> route) {
+    if (_activeTransactionId != transactionId ||
+        !identical(widget.route, route)) {
       return;
     }
-    _acceptedGesture = false;
-    _gestureRevision++;
-    _gestureNavigator = null;
-    widget.route.handleCommitBackGesture();
+    _activeTransactionId = null;
+    _settlingTransactionId = transactionId;
+    _restoreVisual(
+      transactionId,
+      route,
+      rebuild: true,
+      deferOverlayRestore: false,
+    );
+    route.handleCancelBackGesture();
+  }
+
+  void _commitGesture(int transactionId, PageRoute<dynamic> route) {
+    if (_activeTransactionId != transactionId ||
+        !identical(widget.route, route)) {
+      return;
+    }
+    _activeTransactionId = null;
+    route.handleCommitBackGesture();
+  }
+
+  void _forceAbort(
+    int transactionId,
+    NavigatorState navigator,
+    PageRoute<dynamic> route, {
+    required bool rebuild,
+    required bool deferOverlayRestore,
+  }) {
+    if (_activeTransactionId != transactionId) {
+      return;
+    }
+    _activeTransactionId = null;
+    _settlingTransactionId = transactionId;
+    _restoreVisual(
+      transactionId,
+      route,
+      rebuild: rebuild,
+      deferOverlayRestore: deferOverlayRestore,
+    );
+    if (deferOverlayRestore) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _finishForceAbort(transactionId, navigator, route);
+      });
+    } else {
+      _finishForceAbort(transactionId, navigator, route);
+    }
+  }
+
+  void _finishForceAbort(
+    int transactionId,
+    NavigatorState navigator,
+    PageRoute<dynamic> route,
+  ) {
+    if (_settlingTransactionId != transactionId) {
+      return;
+    }
+    if (route.isActive) {
+      _forceAnimationCompleted(route);
+      if (navigator.userGestureInProgress) {
+        route.handleCancelBackGesture();
+      } else {
+        _settlingTransactionId = null;
+      }
+    } else if (navigator.userGestureInProgress) {
+      _settlingTransactionId = null;
+      navigator.didStopUserGesture();
+    }
+  }
+
+  void _forceCompleteSettlement(
+    int transactionId,
+    NavigatorState navigator,
+    PageRoute<dynamic> route,
+  ) {
+    if (_settlingTransactionId != transactionId) {
+      return;
+    }
+    _forceAnimationCompleted(route);
+    _settlingTransactionId = null;
+    if (navigator.userGestureInProgress) {
+      navigator.didStopUserGesture();
+    }
+  }
+
+  void _finishSettlement(int transactionId) {
+    if (_settlingTransactionId == transactionId) {
+      _settlingTransactionId = null;
+    }
+  }
+
+  void _attachCoordinator() {
+    final coordinator = context
+        .findAncestorStateOfType<_PredictiveBackCoordinatorState>();
+    if (identical(_coordinator, coordinator)) {
+      return;
+    }
+    _coordinator?._detachOwner(this);
+    _coordinator = coordinator;
+    _coordinator?._attachOwner(this);
   }
 
   @override
   void initState() {
     super.initState();
     _wasCurrent = widget.route.isCurrent;
-    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _attachCoordinator();
     final isCurrent = ModalRoute.isCurrentOf(context) ?? widget.route.isCurrent;
-    if (_wasCurrent && !isCurrent && _acceptedGesture) {
-      _abortGesture(rebuild: false, deferOverlayRestore: true);
+    if (_wasCurrent && !isCurrent) {
+      _coordinator?._ownerBecameUnavailable(this);
     }
     _wasCurrent = isCurrent;
   }
 
   @override
   void dispose() {
-    if (_acceptedGesture) {
-      _abortGesture(rebuild: false, deferOverlayRestore: true);
-    }
-    WidgetsBinding.instance.removeObserver(this);
+    _coordinator?._detachOwner(this);
+    _coordinator = null;
     super.dispose();
   }
 
