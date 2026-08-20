@@ -101,9 +101,10 @@ class _MiuixNavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
-        ? context.colorScheme.primary
-        : context.colorScheme.onSurfaceVariant;
+    final color = miuixOnSurfaceContainer(Theme.brightnessOf(context));
+    final effectiveColor = color.withValues(
+      alpha: selected ? color.a : color.a * 0.4,
+    );
     final label = Intl.message(item.label.name);
     return Semantics(
       selected: selected,
@@ -117,11 +118,11 @@ class _MiuixNavigationItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedScale(
-              scale: selected ? 1.12 : 1,
+              scale: 1,
               duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutBack,
               child: IconTheme.merge(
-                data: IconThemeData(size: 25, color: color),
+                data: IconThemeData(size: 26, color: effectiveColor),
                 child: item.icon,
               ),
             ),
@@ -131,12 +132,12 @@ class _MiuixNavigationItem extends StatelessWidget {
               curve: Curves.easeOut,
               style:
                   context.textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontSize: 11,
+                    color: effectiveColor,
+                    fontSize: 12,
                     height: 1.15,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
                   ) ??
-                  TextStyle(color: color, fontSize: 11),
+                  TextStyle(color: effectiveColor, fontSize: 12),
               child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
@@ -184,7 +185,8 @@ class HomePage extends ConsumerWidget {
               final liquidGlass =
                   isAndroidAppearance && isFloating && appearance.liquidGlass;
               final isTranslucent =
-                  isAndroidAppearance && (appearance.blur || isFloating);
+                  isAndroidAppearance &&
+                  (appearance.blur || isFloating && !liquidGlass);
               final useLiquidNavigation = liquidGlass;
               final useMiuixNavigation = appearance.isMiuix;
               final bottomNavigationBar = useLiquidNavigation
@@ -225,14 +227,14 @@ class HomePage extends ConsumerWidget {
                       ),
                     );
               final coloredBottomNavigationBar =
-                  appearance.isMiuix && !isTranslucent && !useLiquidNavigation
+                  !useLiquidNavigation && appearance.isMiuix && !isTranslucent
                   ? ColoredBox(
                       color: context.colorScheme.surfaceContainer,
                       child: bottomNavigationBar,
                     )
                   : bottomNavigationBar;
               final navigationSurface = useLiquidNavigation
-                  ? coloredBottomNavigationBar
+                  ? bottomNavigationBar
                   : isTranslucent
                   ? AndroidGlassSurface(
                       blur: appearance.blur,
@@ -255,18 +257,19 @@ class HomePage extends ConsumerWidget {
                         ),
                         child: Padding(
                           padding: AndroidAppearanceTokens.floatingBarMargin,
-                          child: Material(
-                            elevation: useLiquidNavigation ? 0 : 5,
-                            color: Colors.transparent,
-                            shadowColor: context.colorScheme.shadow.withValues(
-                              alpha: 0.22,
-                            ),
-                            shape: const RoundedSuperellipseBorder(
-                              borderRadius: AndroidAppearanceTokens
-                                  .floatingBarBorderRadius,
-                            ),
-                            child: navigationSurface,
-                          ),
+                          child: useLiquidNavigation
+                              ? navigationSurface
+                              : Material(
+                                  elevation: 5,
+                                  color: Colors.transparent,
+                                  shadowColor: context.colorScheme.shadow
+                                      .withValues(alpha: 0.22),
+                                  shape: const RoundedSuperellipseBorder(
+                                    borderRadius: AndroidAppearanceTokens
+                                        .floatingBarBorderRadius,
+                                  ),
+                                  child: navigationSurface,
+                                ),
                         ),
                       ),
                     )

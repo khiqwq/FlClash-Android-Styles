@@ -29,7 +29,9 @@ class ApplicationState extends ConsumerState<Application> {
   bool _preHasVpn = false;
 
   ColorScheme _getAppColorScheme(Brightness brightness) {
-    return ref.watch(genColorSchemeProvider(brightness));
+    return ref.watch(
+      genColorSchemeProvider(brightness, isAndroid: system.isAndroid),
+    );
   }
 
   AppearanceTheme _getAppearanceTheme(ThemeProps themeProps) {
@@ -48,15 +50,17 @@ class ApplicationState extends ConsumerState<Application> {
     required AppearanceTheme appearanceTheme,
   }) {
     final colorScheme = _getAppColorScheme(brightness);
+    final usePureBlack =
+        brightness == Brightness.dark &&
+        themeProps.pureBlack &&
+        !(appearanceTheme.isMiuix && !themeProps.enableMonetColors);
     final theme = ThemeData(
       useMaterial3: true,
       pageTransitionsTheme: buildPageTransitionsTheme(
         predictiveBack: themeProps.predictiveBack,
       ),
       extensions: [appearanceTheme],
-      colorScheme: brightness == Brightness.dark
-          ? colorScheme.toPureBlack(themeProps.pureBlack)
-          : colorScheme,
+      colorScheme: usePureBlack ? colorScheme.toPureBlack(true) : colorScheme,
     );
     return applyAppearanceComponentTheme(theme, appearanceTheme);
   }

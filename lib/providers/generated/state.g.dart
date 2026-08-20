@@ -1793,7 +1793,8 @@ final class GenColorSchemeProvider
     with $Provider<ColorScheme> {
   GenColorSchemeProvider._({
     required GenColorSchemeFamily super.from,
-    required (Brightness, {Color? color, bool ignoreConfig}) super.argument,
+    required (Brightness, {Color? color, bool ignoreConfig, bool? isAndroid})
+    super.argument,
   }) : super(
          retry: null,
          name: r'genColorSchemeProvider',
@@ -1820,12 +1821,14 @@ final class GenColorSchemeProvider
   @override
   ColorScheme create(Ref ref) {
     final argument =
-        this.argument as (Brightness, {Color? color, bool ignoreConfig});
+        this.argument
+            as (Brightness, {Color? color, bool ignoreConfig, bool? isAndroid});
     return genColorScheme(
       ref,
       argument.$1,
       color: argument.color,
       ignoreConfig: argument.ignoreConfig,
+      isAndroid: argument.isAndroid,
     );
   }
 
@@ -1848,13 +1851,13 @@ final class GenColorSchemeProvider
   }
 }
 
-String _$genColorSchemeHash() => r'630704f996228069f50289a261fa538bb333faf4';
+String _$genColorSchemeHash() => r'caca3fb2f7a8729d5ee7e7b9ea27ca14cf408694';
 
 final class GenColorSchemeFamily extends $Family
     with
         $FunctionalFamilyOverride<
           ColorScheme,
-          (Brightness, {Color? color, bool ignoreConfig})
+          (Brightness, {Color? color, bool ignoreConfig, bool? isAndroid})
         > {
   GenColorSchemeFamily._()
     : super(
@@ -1869,8 +1872,14 @@ final class GenColorSchemeFamily extends $Family
     Brightness brightness, {
     Color? color,
     bool ignoreConfig = false,
+    bool? isAndroid,
   }) => GenColorSchemeProvider._(
-    argument: (brightness, color: color, ignoreConfig: ignoreConfig),
+    argument: (
+      brightness,
+      color: color,
+      ignoreConfig: ignoreConfig,
+      isAndroid: isAndroid,
+    ),
     from: this,
   );
 

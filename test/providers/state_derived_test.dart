@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
@@ -393,6 +394,85 @@ void main() {
       ).primary,
     );
   });
+
+  test(
+    'Miuix without Monet uses fixed palettes while Material stays manual',
+    () {
+      final previousAccentColor = globalState.accentColor;
+      final previousCorePalette = globalState.corePalette;
+      addTearDown(() {
+        globalState.accentColor = previousAccentColor;
+        globalState.corePalette = previousCorePalette;
+      });
+      globalState.corePalette = null;
+      globalState.accentColor = const Color(0xFF00AA55);
+
+      container
+          .read(themeSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              interfaceStyle: InterfaceStyle.miuix,
+              enableMonetColors: false,
+              primaryColor: 0xFF663399,
+            ),
+          );
+
+      expect(
+        container.read(
+          genColorSchemeProvider(Brightness.light, isAndroid: true),
+        ),
+        miuixDefaultColorScheme(Brightness.light),
+      );
+      expect(
+        container.read(
+          genColorSchemeProvider(Brightness.dark, isAndroid: true),
+        ),
+        miuixDefaultColorScheme(Brightness.dark),
+      );
+      expect(
+        container
+            .read(genColorSchemeProvider(Brightness.light, isAndroid: false))
+            .primary,
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF663399),
+          brightness: Brightness.light,
+          dynamicSchemeVariant: DynamicSchemeVariant.content,
+        ).primary,
+      );
+
+      container
+          .read(themeSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(interfaceStyle: InterfaceStyle.material),
+          );
+      expect(
+        container.read(genColorSchemeProvider(Brightness.light)).primary,
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF663399),
+          brightness: Brightness.light,
+          dynamicSchemeVariant: DynamicSchemeVariant.content,
+        ).primary,
+      );
+
+      container
+          .read(themeSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              interfaceStyle: InterfaceStyle.miuix,
+              enableMonetColors: true,
+              primaryColor: null,
+            ),
+          );
+      expect(
+        container.read(genColorSchemeProvider(Brightness.light)).primary,
+        ColorScheme.fromSeed(
+          seedColor: globalState.accentColor,
+          brightness: Brightness.light,
+          dynamicSchemeVariant: DynamicSchemeVariant.content,
+        ).primary,
+      );
+    },
+  );
 
   test('package, hotkey, profile, and overwrite providers expose defaults', () {
     const package = Package(
