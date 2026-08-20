@@ -328,8 +328,10 @@ jobs:
         run: python release_telegram.py
 
       - name: Patch release.md
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          version=${RELEASE_TAG#v}
           sed "s|VERSION|$version|g" ./.github/release_template.md >> release.md
 
       - name: Generate sha256
@@ -340,15 +342,17 @@ jobs:
 
       - name: Release
         if: ${{ env.IS_STABLE == 'true' }}
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           files: ./dist/*
           body_path: './release.md'
 
       - name: Create Homebrew Cask Source Dir
         if: ${{ env.IS_STABLE == 'true' }}
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          version=${RELEASE_TAG#v}
           arm_sha=$(sha256sum "./dist/FlClash-${version}-macos-arm64.dmg" | awk '{print $1}')
           amd_sha=$(sha256sum "./dist/FlClash-${version}-macos-amd64.dmg" | awk '{print $1}')
 
@@ -361,18 +365,37 @@ jobs:
 
       - name: Push to Homebrew tap
         if: ${{ env.IS_STABLE == 'true' }}
-        uses: cpina/github-action-push-to-another-repository@07c4d7b3def0a8ebe788a8f2c843a4e1de4f6900
+        shell: bash
         env:
           SSH_DEPLOY_KEY: ${{ secrets.HOMEBREW_SSH_DEPLOY_KEY }}
-        with:
-          source-directory: ./brew/
-          destination-github-username: chen08209
-          destination-repository-name: homebrew-tap
-          user-name: 'chen08029'
-          user-email: 'chen08209@gmail.com'
-          target-branch: main
-          commit-message: Update Homebrew cask from ${{ github.ref_name }}
-          target-directory: /
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          repo_dir="$RUNNER_TEMP/homebrew-tap"
+          key_file="$RUNNER_TEMP/homebrew_deploy_key"
+          known_hosts="$RUNNER_TEMP/github_known_hosts"
+          trap 'rm -f "$key_file" "$known_hosts"' EXIT
+          printf '%s\n' "$SSH_DEPLOY_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes -o UserKnownHostsFile=$known_hosts -o StrictHostKeyChecking=yes"
+          git clone --depth 1 --branch main git@github.com:chen08209/homebrew-tap.git "$repo_dir"
+          (
+            cd "$repo_dir"
+            git ls-files -z | xargs -0 -r git rm -f --
+          )
+          cp -a ./brew/. "$repo_dir/"
+          (
+            cd "$repo_dir"
+            git config user.name 'chen08029'
+            git config user.email 'chen08209@gmail.com'
+            git add -A
+            if git diff --cached --quiet; then
+              exit 0
+            fi
+            git commit -m "Update Homebrew cask from $RELEASE_TAG"
+            git push origin HEAD:main
+          )
 
       - name: Create Fdroid Source Dir
         if: ${{ env.IS_STABLE == 'true' }}
@@ -383,15 +406,35 @@ jobs:
 
       - name: Push to fdroid repo
         if: ${{ env.IS_STABLE == 'true' }}
-        uses: cpina/github-action-push-to-another-repository@07c4d7b3def0a8ebe788a8f2c843a4e1de4f6900
+        shell: bash
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
-        with:
-          source-directory: ./tmp/
-          destination-github-username: chen08209
-          destination-repository-name: FlClash-fdroid-repo
-          user-name: 'chen08029'
-          user-email: 'chen08209@gmail.com'
-          target-branch: main
-          commit-message: Update from ${{ github.ref_name }}
-          target-directory: /tmp/
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          repo_dir="$RUNNER_TEMP/fdroid-repo"
+          key_file="$RUNNER_TEMP/fdroid_deploy_key"
+          known_hosts="$RUNNER_TEMP/github_known_hosts"
+          trap 'rm -f "$key_file" "$known_hosts"' EXIT
+          printf '%s\n' "$SSH_DEPLOY_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes -o UserKnownHostsFile=$known_hosts -o StrictHostKeyChecking=yes"
+          git clone --depth 1 --branch main git@github.com:chen08209/FlClash-fdroid-repo.git "$repo_dir"
+          (
+            cd "$repo_dir"
+            git rm -r --ignore-unmatch tmp
+            mkdir -p tmp
+          )
+          cp -a ./tmp/. "$repo_dir/tmp/"
+          (
+            cd "$repo_dir"
+            git config user.name 'chen08029'
+            git config user.email 'chen08209@gmail.com'
+            git add -A
+            if git diff --cached --quiet; then
+              exit 0
+            fi
+            git commit -m "Update from $RELEASE_TAG"
+            git push origin HEAD:main
+          )

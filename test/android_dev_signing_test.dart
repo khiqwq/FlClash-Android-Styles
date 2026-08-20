@@ -110,9 +110,27 @@ void main() {
     expect(releaseWorkflow, contains('Verify Android APK identity'));
     expect(
       releaseWorkflow,
+      contains(
+        'softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228',
+      ),
+    );
+    expect(
+      releaseWorkflow,
       contains('Verified using v2 scheme (APK Signature Scheme v2): true'),
     );
     expect(releaseWorkflow, isNot(contains('pip install requests')));
+    expect(
+      releaseWorkflow,
+      isNot(contains('cpina/github-action-push-to-another-repository')),
+    );
+    expect(releaseWorkflow, contains('StrictHostKeyChecking=yes'));
+    expect(
+      releaseWorkflow,
+      contains(
+        'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl',
+      ),
+    );
+    expect(releaseWorkflow, isNot(contains(r'echo "${{ github.ref_name }}"')));
     expect(
       releaseWorkflow,
       contains(
