@@ -85,6 +85,7 @@ jobs:
         run: |
           echo "$DEV_KEYSTORE" | base64 --decode > android/app/keystore.jks
           {
+            echo
             echo "keyAlias=$DEV_KEY_ALIAS"
             echo "storePassword=$DEV_STORE_PASSWORD"
             echo "keyPassword=$DEV_KEY_PASSWORD"
