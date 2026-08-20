@@ -1,3 +1,23 @@
+// Copyright 2025 Kyant
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// FlClash translated and modified this shader for Flutter from
+// Kyant0/AndroidLiquidGlass commit
+// b18eb0ff12c616546a68c72e7d0097f1ab286c87:
+// backdrop/src/commonMain/kotlin/com/kyant/backdrop/internal/Shaders.kt
+// AmbientHighlightShaderString.
+
 #version 320 es
 
 #include <flutter/runtime_effect.glsl>
@@ -34,6 +54,9 @@ vec2 rounded_rect_gradient(
 
 void main() {
   vec2 coordinate = FlutterFragCoord().xy;
+#ifdef IMPELLER_TARGET_OPENGLES
+  coordinate.y = u_size.y - coordinate.y;
+#endif
   vec2 half_size = u_size * 0.5;
   vec2 centered = coordinate - half_size;
   float radius = min(

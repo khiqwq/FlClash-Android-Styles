@@ -1,5 +1,5 @@
 // Adapted from AndroidLiquidGlass LiquidToggle.kt at commit b18eb0ff.
-// Copyright AndroidLiquidGlass contributors. Licensed under Apache-2.0.
+// Copyright 2025 Kyant. Licensed under Apache-2.0.
 // Modified for Flutter and multi-destination navigation by FlClash contributors.
 
 import 'dart:async';
@@ -9,6 +9,7 @@ import 'dart:ui' as ui;
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/models/common.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:intl/intl.dart' as intl;
@@ -66,8 +67,12 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   int? _activePointer;
   int? _directTapIndex;
   bool _didDrag = false;
+  bool _pointerGestureRejected = false;
   bool _activeIsIndicator = false;
   bool _tracksValueVelocity = false;
+  Offset _pointerDisplacement = Offset.zero;
+  double _pointerSlop = 0;
+  double _pointerStartFraction = 0;
   int _releaseEpoch = 0;
 
   @override
@@ -123,7 +128,18 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     super.didUpdateWidget(oldWidget);
     final selectedIndex = _clampIndex(widget.selectedIndex);
     if (_activePointer != null) {
-      _deferredExternalIndex = selectedIndex;
+      if (_awaitingExternalIndex != null) {
+        if (selectedIndex == _awaitingExternalIndex) {
+          _awaitingExternalIndex = null;
+          return;
+        }
+        if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
+          return;
+        }
+      }
+      _deferredExternalIndex = selectedIndex == _committedIndex
+          ? null
+          : selectedIndex;
       return;
     }
     if (_awaitingExternalIndex != null) {
@@ -145,6 +161,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
 
   @override
   void dispose() {
+    _releaseEpoch++;
+    _clearPointerInteraction();
+    _stopVelocityTracking();
     _positionController
       ..removeListener(_updateVelocity)
       ..dispose();
@@ -291,14 +310,13 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   Future<void> _releaseNearTarget(int epoch) async {
     await WidgetsBinding.instance.endOfFrame;
     final threshold = _valueRange * 0.025;
-    while (mounted &&
-        epoch == _releaseEpoch &&
-        _activePointer == null &&
-        (_positionController.value - _positionTarget).abs() >= threshold) {
+    while (mounted && epoch == _releaseEpoch) {
+      if (_activePointer == null &&
+          (_positionController.value - _positionTarget).abs() < threshold) {
+        _releasePress();
+        return;
+      }
       await WidgetsBinding.instance.endOfFrame;
-    }
-    if (mounted && epoch == _releaseEpoch && _activePointer == null) {
-      _releasePress();
     }
   }
 
@@ -344,6 +362,13 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     _activePointer = event.pointer;
     _directTapIndex = target;
     _didDrag = false;
+    _pointerGestureRejected = false;
+    _pointerDisplacement = Offset.zero;
+    _pointerSlop = computeHitSlop(
+      event.kind,
+      MediaQuery.gestureSettingsOf(context),
+    );
+    _pointerStartFraction = _fraction;
     _activeIsIndicator = _visibleIndicatorRect().contains(event.localPosition);
     if (!_activeIsIndicator) {
       return;
@@ -356,19 +381,37 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     if (_activePointer != event.pointer) {
       return;
     }
+    _pointerDisplacement += event.delta;
+    final horizontalDistance = _pointerDisplacement.dx.abs();
+    final verticalDistance = _pointerDisplacement.dy.abs();
     if (!_activeIsIndicator) {
-      if (event.delta.distance != 0) {
-        _didDrag = true;
+      if (horizontalDistance > _pointerSlop ||
+          verticalDistance > _pointerSlop) {
+        _pointerGestureRejected = true;
       }
       return;
     }
-    if (event.delta.dx != 0) {
+    if (_pointerGestureRejected) {
+      return;
+    }
+    if (!_didDrag) {
+      if (horizontalDistance <= _pointerSlop &&
+          verticalDistance <= _pointerSlop) {
+        return;
+      }
+      if (horizontalDistance <= _pointerSlop ||
+          horizontalDistance <= verticalDistance) {
+        _pointerGestureRejected = true;
+        return;
+      }
       _didDrag = true;
     }
     final direction = Directionality.of(context);
     final delta =
-        event.delta.dx / _dragWidth * (direction == TextDirection.ltr ? 1 : -1);
-    _updateValue(_fraction + delta);
+        _pointerDisplacement.dx /
+        _dragWidth *
+        (direction == TextDirection.ltr ? 1 : -1);
+    _updateValue(_pointerStartFraction + delta);
   }
 
   void _handlePointerUp(PointerUpEvent event) {
@@ -385,20 +428,31 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     _finishIndicatorInteraction(canceled: true);
   }
 
-  void _finishIndicatorInteraction({required bool canceled}) {
+  void _clearPointerInteraction() {
     _activePointer = null;
+    _directTapIndex = null;
+    _activeIsIndicator = false;
+    _didDrag = false;
+    _pointerGestureRejected = false;
+    _pointerDisplacement = Offset.zero;
+    _pointerSlop = 0;
+    _pointerStartFraction = 0;
+  }
+
+  void _finishIndicatorInteraction({required bool canceled}) {
     final activeIsIndicator = _activeIsIndicator;
     final directTapIndex = _directTapIndex;
-    _activeIsIndicator = false;
-    _directTapIndex = null;
+    final pointerGestureRejected = _pointerGestureRejected;
+    final didDrag = _didDrag;
+    _clearPointerInteraction();
     if (!activeIsIndicator) {
-      final didDrag = _didDrag;
-      _didDrag = false;
       final deferredIndex = _deferredExternalIndex;
       _deferredExternalIndex = null;
       if (canceled) {
         if (deferredIndex != null) {
           _applyExternalSelection(deferredIndex);
+        } else {
+          _scheduleRelease();
         }
         return;
       }
@@ -406,17 +460,17 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
         _applyExternalSelection(deferredIndex);
         return;
       }
-      if (!didDrag && directTapIndex != null) {
+      if (!didDrag && !pointerGestureRejected && directTapIndex != null) {
         _activateItem(directTapIndex);
         return;
       }
       if (deferredIndex != null) {
         _applyExternalSelection(deferredIndex);
+      } else {
+        _scheduleRelease();
       }
       return;
     }
-    final didDrag = _didDrag;
-    _didDrag = false;
     final deferredIndex = _deferredExternalIndex;
     _deferredExternalIndex = null;
     if (!didDrag && deferredIndex != null) {
@@ -427,7 +481,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
       _scheduleRelease();
       return;
     }
-    if (!didDrag &&
+    if (!canceled &&
+        !pointerGestureRejected &&
+        !didDrag &&
         directTapIndex != null &&
         directTapIndex != _committedIndex) {
       _activateItem(directTapIndex);
@@ -443,10 +499,10 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     } else {
       _animatePosition(_fraction, trackVelocity: false);
     }
+    _scheduleRelease();
     if (changed) {
       widget.onSelected(target);
     }
-    _scheduleRelease();
   }
 
   void _applyExternalSelection(int index) {
@@ -483,6 +539,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
         : const Color(0xFF787878).withValues(alpha: 0.2);
     return SizedBox(
       key: const ValueKey('liquid-toggle-navigation'),
+      width: double.infinity,
       height: AndroidAppearanceTokens.liquidNavigationBarHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -529,8 +586,8 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                 child: Stack(
                   alignment: AlignmentDirectional.centerStart,
                   clipBehavior: Clip.none,
+                  fit: StackFit.expand,
                   children: [
-                    const SizedBox.shrink(),
                     PositionedDirectional(
                       key: const ValueKey('liquid-glass-indicator-layer'),
                       start: indicatorStart,
@@ -563,10 +620,46 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                               indicatorHeight / 2,
                             ),
                             shape: const StadiumBorder(),
-                            liquidBackdropLayer: Transform.scale(
-                              scaleX: trackScaleX,
-                              scaleY: trackScaleY,
-                              child: ColoredBox(color: trackColor),
+                            liquidBackdropLayer: OverflowBox(
+                              alignment: Alignment.topLeft,
+                              minWidth: constraints.maxWidth,
+                              maxWidth: constraints.maxWidth,
+                              minHeight: constraints.maxHeight,
+                              maxHeight: constraints.maxHeight,
+                              child: Transform.translate(
+                                key: const ValueKey(
+                                  'liquid-toggle-track-source-translation',
+                                ),
+                                offset: Offset(-indicatorLeft, -_trackPadding),
+                                transformHitTests: false,
+                                child: Transform.scale(
+                                  key: const ValueKey(
+                                    'liquid-toggle-track-source-scale',
+                                  ),
+                                  alignment: FractionalOffset(
+                                    (indicatorLeft + _cellWidth / 2) /
+                                        constraints.maxWidth,
+                                    (_trackPadding + indicatorHeight / 2) /
+                                        constraints.maxHeight,
+                                  ),
+                                  scaleX: trackScaleX,
+                                  scaleY: trackScaleY,
+                                  transformHitTests: false,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(
+                                      constraints.maxHeight / 2,
+                                    ),
+                                    child: SizedBox(
+                                      key: const ValueKey(
+                                        'liquid-toggle-track-source',
+                                      ),
+                                      width: constraints.maxWidth,
+                                      height: constraints.maxHeight,
+                                      child: ColoredBox(color: trackColor),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                             child: Stack(
                               key: const ValueKey(
