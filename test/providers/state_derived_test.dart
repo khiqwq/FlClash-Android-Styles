@@ -5,6 +5,7 @@ import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/state.dart';
+import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod/riverpod.dart';
@@ -321,6 +322,75 @@ void main() {
         ),
       ),
       isTrue,
+    );
+  });
+
+  test('disabling Monet bypasses dynamic seeds and invalidates the scheme', () {
+    final previousCorePalette = globalState.corePalette;
+    final previousAccentColor = globalState.accentColor;
+    addTearDown(() {
+      globalState.corePalette = previousCorePalette;
+      globalState.accentColor = previousAccentColor;
+    });
+    globalState.corePalette = null;
+    globalState.accentColor = const Color(0xFF00AA55);
+    container
+        .read(themeSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            primaryColor: null,
+            schemeVariant: DynamicSchemeVariant.content,
+            enableMonetColors: true,
+          ),
+        );
+    final provider = genColorSchemeProvider(Brightness.light);
+    final subscription = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(subscription.close);
+
+    expect(
+      subscription.read().primary,
+      ColorScheme.fromSeed(
+        seedColor: globalState.accentColor,
+        brightness: Brightness.light,
+        dynamicSchemeVariant: DynamicSchemeVariant.content,
+      ).primary,
+    );
+
+    container
+        .read(themeSettingProvider.notifier)
+        .update((state) => state.copyWith(enableMonetColors: false));
+    final fallbackScheme = ColorScheme.fromSeed(
+      seedColor: const Color(defaultPrimaryColor),
+      brightness: Brightness.light,
+      dynamicSchemeVariant: DynamicSchemeVariant.content,
+    );
+    expect(subscription.read().primary, fallbackScheme.primary);
+    expect(
+      container
+          .read(genColorSchemeProvider(Brightness.light, ignoreConfig: true))
+          .primary,
+      fallbackScheme.primary,
+    );
+
+    container
+        .read(themeSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            primaryColor: 0xFF663399,
+            schemeVariant: DynamicSchemeVariant.vibrant,
+          ),
+        );
+    expect(
+      subscription.read().primary,
+      ColorScheme.fromSeed(
+        seedColor: const Color(0xFF663399),
+        brightness: Brightness.light,
+        dynamicSchemeVariant: DynamicSchemeVariant.vibrant,
+      ).primary,
     );
   });
 

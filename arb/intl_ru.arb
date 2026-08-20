@@ -85,6 +85,7 @@
   "profileAutoUpdateIntervalInvalidValidationDesc": "Пожалуйста, введите действительный формат интервала времени",
   "themeMode": "Режим темы",
   "themeColor": "Цвет темы",
+  "enableMonetColors": "Включить цвета Monet",
   "preview": "Предпросмотр",
   "auto": "Авто",
   "light": "Светлый",

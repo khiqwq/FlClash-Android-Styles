@@ -584,6 +584,7 @@ class HomeBackScopeContainer extends ConsumerWidget {
       return child;
     }
     return CommonPopScope(
+      canPop: false,
       onPop: (context) async {
         final pageLabel = ref.read(currentPageLabelProvider);
         final realContext =
@@ -596,7 +597,6 @@ class HomeBackScopeContainer extends ConsumerWidget {
               .read(systemActionProvider.notifier)
               .handleClose();
         }
-        return false;
       },
       child: child,
     );

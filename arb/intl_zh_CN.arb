@@ -85,6 +85,7 @@
   "profileAutoUpdateIntervalInvalidValidationDesc": "请输入有效间隔时间格式",
   "themeMode": "主题模式",
   "themeColor": "主题色彩",
+  "enableMonetColors": "启用 Monet 颜色",
   "preview": "预览",
   "auto": "自动",
   "light": "浅色",

@@ -272,6 +272,7 @@ _ThemeProps _$ThemePropsFromJson(Map<String, dynamic> json) => _ThemeProps(
         json['schemeVariant'],
       ) ??
       DynamicSchemeVariant.content,
+  enableMonetColors: json['enableMonetColors'] as bool? ?? true,
   pureBlack: json['pureBlack'] as bool? ?? false,
   textScale: json['textScale'] == null
       ? const TextScale()
@@ -296,6 +297,7 @@ Map<String, dynamic> _$ThemePropsToJson(_ThemeProps instance) =>
       'primaryColors': instance.primaryColors,
       'themeMode': _$ThemeModeEnumMap[instance.themeMode]!,
       'schemeVariant': _$DynamicSchemeVariantEnumMap[instance.schemeVariant]!,
+      'enableMonetColors': instance.enableMonetColors,
       'pureBlack': instance.pureBlack,
       'textScale': instance.textScale,
       'interfaceStyle': _$InterfaceStyleEnumMap[instance.interfaceStyle]!,

@@ -28,11 +28,8 @@ class ApplicationState extends ConsumerState<Application> {
   Timer? _autoUpdateProfilesTaskTimer;
   bool _preHasVpn = false;
 
-  ColorScheme _getAppColorScheme({
-    required Brightness brightness,
-    int? primaryColor,
-  }) {
-    return ref.read(genColorSchemeProvider(brightness));
+  ColorScheme _getAppColorScheme(Brightness brightness) {
+    return ref.watch(genColorSchemeProvider(brightness));
   }
 
   AppearanceTheme _getAppearanceTheme(ThemeProps themeProps) {
@@ -50,10 +47,7 @@ class ApplicationState extends ConsumerState<Application> {
     required ThemeProps themeProps,
     required AppearanceTheme appearanceTheme,
   }) {
-    final colorScheme = _getAppColorScheme(
-      brightness: brightness,
-      primaryColor: themeProps.primaryColor,
-    );
+    final colorScheme = _getAppColorScheme(brightness);
     final theme = ThemeData(
       useMaterial3: true,
       pageTransitionsTheme: buildPageTransitionsTheme(

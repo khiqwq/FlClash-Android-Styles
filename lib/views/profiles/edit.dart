@@ -331,10 +331,9 @@ class _EditProfileViewState extends State<EditProfileView> {
           canPop: _fileData == null,
           onPop: (context) {
             if (_fileData == null) {
-              return true;
+              return;
             }
             _handleBack();
-            return false;
           },
           child: FloatLayout(
             floatingWidget: FloatWrapper(

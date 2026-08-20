@@ -494,26 +494,24 @@ ColorScheme genColorScheme(
   Color? color,
   bool ignoreConfig = false,
 }) {
-  final vm2 = ref.watch(
+  final theme = ref.watch(
     themeSettingProvider.select(
-      (state) => VM2(state.primaryColor, state.schemeVariant),
+      (state) =>
+          VM3(state.primaryColor, state.schemeVariant, state.enableMonetColors),
     ),
   );
-  if (color == null && (ignoreConfig == true || vm2.a == null)) {
-    return ColorScheme.fromSeed(
-      seedColor:
-          globalState.corePalette
-              ?.toColorScheme(brightness: brightness)
-              .primary ??
-          globalState.accentColor,
-      brightness: brightness,
-      dynamicSchemeVariant: vm2.b,
-    );
-  }
+  final useMonetColors =
+      theme.c && color == null && (ignoreConfig || theme.a == null);
+  final seedColor = useMonetColors
+      ? globalState.corePalette
+                ?.toColorScheme(brightness: brightness)
+                .primary ??
+            globalState.accentColor
+      : color ?? Color(theme.a ?? defaultPrimaryColor);
   return ColorScheme.fromSeed(
-    seedColor: color ?? Color(vm2.a!),
+    seedColor: seedColor,
     brightness: brightness,
-    dynamicSchemeVariant: vm2.b,
+    dynamicSchemeVariant: theme.b,
   );
 }
 

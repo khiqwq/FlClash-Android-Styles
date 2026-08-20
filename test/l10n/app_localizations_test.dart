@@ -73,6 +73,7 @@ List<String> _allMessages(AppLocalizations appLocalizations) {
     appLocalizations.liquidGlassDesc,
     appLocalizations.predictiveBack,
     appLocalizations.predictiveBackDesc,
+    appLocalizations.enableMonetColors,
     appLocalizations.override,
     appLocalizations.allowLan,
     appLocalizations.allowLanDesc,

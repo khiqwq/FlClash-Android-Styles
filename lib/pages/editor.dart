@@ -72,15 +72,17 @@ class _EditorPopScope extends StatelessWidget {
         return CommonPopScope(
           canPop: canPop,
           onPop: (context) async {
-            if (editor.onPop == null) {
-              return true;
+            if (canPop || editor.onPop == null) {
+              return;
             }
-            final res = await editor.onPop!(
+            final shouldDiscard = await editor.onPop!(
               context,
               titleController.text,
               controller.text,
             );
-            return res && context.mounted;
+            if (shouldDiscard && context.mounted) {
+              Navigator.of(context).pop();
+            }
           },
           child: child,
         );

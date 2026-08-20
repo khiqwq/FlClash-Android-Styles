@@ -108,6 +108,25 @@ void main() {
     );
   });
 
+  testWidgets('Monet color toggle updates the persisted theme setting', (
+    tester,
+  ) async {
+    await tester.pumpWidget(buildApp(const MonetColorsSetting()));
+    await tester.pumpAndSettle();
+    final localizations = AppLocalizations.of(
+      tester.element(find.byType(MonetColorsSetting)),
+    );
+
+    expect(find.text(localizations.enableMonetColors), findsOneWidget);
+    expect(container.read(themeSettingProvider).enableMonetColors, true);
+
+    await tester.tap(findListTileByKey('monet-colors-toggle'));
+    await tester.pump();
+
+    expect(container.read(themeSettingProvider).enableMonetColors, false);
+    expect(container.read(configProvider).themeProps.enableMonetColors, false);
+  });
+
   testWidgets('blur appearance wraps the top bar in a backdrop filter', (
     tester,
   ) async {

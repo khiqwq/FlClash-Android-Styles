@@ -85,6 +85,7 @@
   "profileAutoUpdateIntervalInvalidValidationDesc": "有効な間隔形式を入力してください",
   "themeMode": "テーマモード",
   "themeColor": "テーマカラー",
+  "enableMonetColors": "Monet カラーを有効にする",
   "preview": "プレビュー",
   "auto": "自動",
   "light": "ライト",

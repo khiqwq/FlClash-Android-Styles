@@ -71,10 +71,7 @@ class _AddedRulesViewState extends ConsumerState<AddedRulesView> {
       onPop: (_) {
         if (selectedRules.isNotEmpty) {
           ref.read(itemsProvider(_key).notifier).value = {};
-          return false;
         }
-        Navigator.of(context).pop();
-        return false;
       },
 
       child: BaseScaffold(

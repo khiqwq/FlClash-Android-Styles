@@ -373,6 +373,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "editSsid": MessageLookupByLibrary.simpleMessage("Изменить SSID"),
     "emptyTip": m4,
     "en": MessageLookupByLibrary.simpleMessage("Английский"),
+    "enableMonetColors": MessageLookupByLibrary.simpleMessage(
+      "Включить цвета Monet",
+    ),
     "entries": MessageLookupByLibrary.simpleMessage(" записей"),
     "entriesCount": m5,
     "exclude": MessageLookupByLibrary.simpleMessage(

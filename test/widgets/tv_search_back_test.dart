@@ -145,6 +145,10 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'needle');
     expect(query, 'needle');
+    expect(
+      ModalRoute.of(tester.element(find.byType(TextField)))?.willHandlePopInternally,
+      true,
+    );
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
