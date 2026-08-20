@@ -67,9 +67,11 @@ class AndroidGlassSurface extends StatefulWidget {
   final double liquidDepthEffect;
   final double liquidSamplePadding;
   final bool scaleLiquidBlurWithProgress;
+  final bool showLiquidRim;
   final Size? liquidSize;
   final BorderRadius borderRadius;
   final OutlinedBorder? shape;
+  final Widget? liquidBackdropLayer;
   final Widget child;
 
   const AndroidGlassSurface({
@@ -86,9 +88,11 @@ class AndroidGlassSurface extends StatefulWidget {
     this.liquidDepthEffect = 0,
     this.liquidSamplePadding = 40,
     this.scaleLiquidBlurWithProgress = true,
+    this.showLiquidRim = true,
     this.liquidSize,
     this.borderRadius = BorderRadius.zero,
     this.shape,
+    this.liquidBackdropLayer,
     required this.child,
   });
 
@@ -187,9 +191,12 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
       return blur;
     }
     final inputSize = Size(
-      shapeSize.width + samplePadding * 2,
-      shapeSize.height + samplePadding * 2,
+      (shapeSize.width + samplePadding * 2) *
+          MediaQuery.devicePixelRatioOf(context),
+      (shapeSize.height + samplePadding * 2) *
+          MediaQuery.devicePixelRatioOf(context),
     );
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final resolvedRadii = widget.borderRadius.resolve(
       Directionality.of(context),
     );
@@ -205,11 +212,26 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
     }
     final uniforms = LiquidGlassUniforms(
       inputSize: inputSize,
-      shapeOrigin: Offset(samplePadding, samplePadding),
-      shapeSize: shapeSize,
-      cornerRadii: resolvedRadii,
-      refractionHeight: refractionHeight,
-      refractionAmount: refractionAmount,
+      shapeOrigin: Offset(
+        samplePadding * devicePixelRatio,
+        samplePadding * devicePixelRatio,
+      ),
+      shapeSize: Size(
+        shapeSize.width * devicePixelRatio,
+        shapeSize.height * devicePixelRatio,
+      ),
+      cornerRadii: BorderRadius.only(
+        topLeft: Radius.circular(resolvedRadii.topLeft.x * devicePixelRatio),
+        topRight: Radius.circular(resolvedRadii.topRight.x * devicePixelRatio),
+        bottomRight: Radius.circular(
+          resolvedRadii.bottomRight.x * devicePixelRatio,
+        ),
+        bottomLeft: Radius.circular(
+          resolvedRadii.bottomLeft.x * devicePixelRatio,
+        ),
+      ),
+      refractionHeight: refractionHeight * devicePixelRatio,
+      refractionAmount: refractionAmount * devicePixelRatio,
       chromaticAberration:
           widget.liquidChromaticAberration ??
           AndroidAppearanceTokens.liquidGlassChromaticAberration *
@@ -261,6 +283,8 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
           clipBehavior: Clip.none,
           fit: StackFit.passthrough,
           children: [
+            if (widget.liquidBackdropLayer case final backdropLayer?)
+              Positioned.fill(child: backdropLayer),
             if (widget.blur || widget.liquidGlass)
               Positioned(
                 left: -samplePadding,
@@ -274,7 +298,7 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
               ),
             Positioned.fill(child: ColoredBox(color: surfaceColor)),
             widget.child,
-            if (widget.liquidGlass)
+            if (widget.liquidGlass && widget.showLiquidRim)
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
