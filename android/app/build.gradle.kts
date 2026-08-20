@@ -63,7 +63,7 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
-            applicationIdSuffix = ".dev"
+            applicationIdSuffix = ".local"
         }
 
         release {

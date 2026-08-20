@@ -62,7 +62,7 @@ ColorScheme _miuixLightColorScheme() {
     secondary: const Color(0xFFE6E6E6),
     onSecondary: Colors.white,
     secondaryContainer: const Color(0xFFF0F0F0),
-    onSecondaryContainer: const Color(0xFFA9A9A9),
+    onSecondaryContainer: const Color(0xFF303030),
     secondaryFixed: const Color(0xFFE6E6E6),
     secondaryFixedDim: const Color(0xFFF0F0F0),
     onSecondaryFixed: const Color(0xFF303030),
@@ -113,7 +113,7 @@ ColorScheme _miuixDarkColorScheme() {
     secondary: const Color(0xFF505050),
     onSecondary: Colors.white,
     secondaryContainer: const Color(0xFF434343),
-    onSecondaryContainer: const Color(0xFF7C7C7C),
+    onSecondaryContainer: const Color(0xFFD9D9D9),
     secondaryFixed: const Color(0xFF505050),
     secondaryFixedDim: const Color(0xFF434343),
     onSecondaryFixed: const Color(0xFFD9D9D9),
@@ -233,7 +233,11 @@ ThemeData applyAppearanceComponentTheme(
     ),
     shape: WidgetStatePropertyAll(componentShape),
   );
-  final colorScheme = theme.colorScheme;
+  final sourceColorScheme = theme.colorScheme;
+  final colorScheme = sourceColorScheme.copyWith(
+    secondaryContainer: sourceColorScheme.secondaryFixedDim,
+    onSecondaryContainer: sourceColorScheme.onSecondaryFixed,
+  );
   final isDark = colorScheme.brightness == Brightness.dark;
   final disabledPrimary = isDark
       ? const Color(0xFF253E64)
@@ -250,6 +254,12 @@ ThemeData applyAppearanceComponentTheme(
   final disabledPrimarySlider = isDark
       ? const Color(0xFF44587C)
       : const Color(0xFFB8CFF5);
+  final disabledTonalBackground = isDark
+      ? const Color(0xFF343434)
+      : const Color(0xFFE3E3E3);
+  final disabledTonalForeground = isDark
+      ? const Color(0xFF9A9A9A)
+      : const Color(0xFF6B6B6B);
   final sliderBackground = isDark
       ? const Color(0x26FFFFFF)
       : const Color(0x0F000000);
@@ -311,7 +321,20 @@ ThemeData applyAppearanceComponentTheme(
         ),
       ),
     ),
-    filledButtonTheme: FilledButtonThemeData(style: buttonStyle),
+    filledButtonTheme: FilledButtonThemeData(
+      style: buttonStyle.copyWith(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.disabled)
+              ? disabledTonalBackground
+              : null;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.disabled)
+              ? disabledTonalForeground
+              : null;
+        }),
+      ),
+    ),
     outlinedButtonTheme: OutlinedButtonThemeData(style: buttonStyle),
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(

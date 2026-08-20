@@ -34,24 +34,28 @@ class FontFamilyItem {
 }
 
 class ThemeView extends StatelessWidget {
-  const ThemeView({super.key});
+  @visibleForTesting
+  final bool? isAndroid;
+
+  const ThemeView({super.key, @visibleForTesting this.isAndroid});
 
   @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
+    final isAndroid = this.isAndroid ?? system.isAndroid;
     return BaseScaffold(
       title: appLocalizations.theme,
       body: CustomScrollView(
         slivers: [
-          if (system.isAndroid) ...[
+          if (isAndroid) ...[
             const SliverToBoxAdapter(child: AndroidAppearanceSettings()),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
           ],
           const _ThemeModeItem(),
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          const _PrimaryColorItem(),
+          _PrimaryColorItem(isAndroid: isAndroid),
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          const _PrueBlackItem(),
+          SliverToBoxAdapter(child: PureBlackSetting(isAndroid: isAndroid)),
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
           const _TextScaleFactorItem(),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -253,7 +257,9 @@ class _ThemeModeItem extends ConsumerWidget {
 }
 
 class _PrimaryColorItem extends ConsumerStatefulWidget {
-  const _PrimaryColorItem();
+  final bool isAndroid;
+
+  const _PrimaryColorItem({required this.isAndroid});
 
   @override
   ConsumerState<_PrimaryColorItem> createState() => _PrimaryColorItemState();
@@ -366,12 +372,14 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
     final appLocalizations = context.appLocalizations;
     final theme = ref.watch(
       themeSettingProvider.select(
-        (state) => VM5(
-          state.primaryColor,
-          state.primaryColors,
-          state.schemeVariant,
-          state.enableMonetColors,
-          state.primaryColor == defaultPrimaryColor &&
+        (state) => (
+          primaryColor: state.primaryColor,
+          primaryColors: state.primaryColors,
+          schemeVariant: state.schemeVariant,
+          enableMonetColors: state.enableMonetColors,
+          interfaceStyle: state.interfaceStyle,
+          isDefault:
+              state.primaryColor == defaultPrimaryColor &&
               intListEquality.equals(
                 state.primaryColors,
                 defaultPrimaryColors,
@@ -381,11 +389,14 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
         ),
       ),
     );
-    final primaryColor = theme.a;
-    final primaryColors = [null, ...theme.b];
-    final schemeVariant = theme.c;
-    final enableMonetColors = theme.d;
-    final isEquals = theme.e;
+    final primaryColor = theme.primaryColor;
+    final primaryColors = [null, ...theme.primaryColors];
+    final schemeVariant = theme.schemeVariant;
+    final enableMonetColors = theme.enableMonetColors;
+    final isMiuix = theme.interfaceStyle == InterfaceStyle.miuix;
+    final useFixedMiuixPalette =
+        widget.isAndroid && isMiuix && !enableMonetColors;
+    final isEquals = theme.isDefault;
 
     return SliverToBoxAdapter(
       child: CommonPopScope(
@@ -403,7 +414,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
             iconData: Icons.palette,
           ),
           actions: genActions([
-            if (_removablePrimaryColor == null)
+            if (_removablePrimaryColor == null && !useFixedMiuixPalette)
               FilledButton(
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
@@ -423,7 +434,9 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
                 },
                 child: Text(appLocalizations.cancel),
               ),
-            if (_removablePrimaryColor == null && !isEquals)
+            if (_removablePrimaryColor == null &&
+                !isEquals &&
+                !useFixedMiuixPalette)
               IconButton.filledTonal(
                 iconSize: 20,
                 padding: const EdgeInsets.all(4),
@@ -436,89 +449,93 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                if (system.isAndroid) ...[
-                  MonetColorsSetting(value: enableMonetColors),
-                  const SizedBox(height: 16),
+                if (widget.isAndroid && isMiuix) ...[
+                  MonetColorsSetting(
+                    value: enableMonetColors,
+                    isAndroid: widget.isAndroid,
+                  ),
+                  if (!useFixedMiuixPalette) const SizedBox(height: 16),
                 ],
-                LayoutBuilder(
-                  builder: (_, constraints) {
-                    final columns = _calcColumns(constraints.maxWidth);
-                    final itemWidth =
-                        (constraints.maxWidth - (columns - 1) * 16) / columns;
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: [
-                        for (final color in primaryColors)
-                          Container(
-                            clipBehavior: Clip.none,
-                            width: itemWidth,
-                            height: itemWidth,
-                            child: Stack(
-                              alignment: Alignment.center,
+                if (!useFixedMiuixPalette)
+                  LayoutBuilder(
+                    builder: (_, constraints) {
+                      final columns = _calcColumns(constraints.maxWidth);
+                      final itemWidth =
+                          (constraints.maxWidth - (columns - 1) * 16) / columns;
+                      return Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: [
+                          for (final color in primaryColors)
+                            Container(
                               clipBehavior: Clip.none,
-                              children: [
-                                EffectGestureDetector(
-                                  child: ColorSchemeBox(
-                                    isSelected: color == primaryColor,
-                                    primaryColor: color != null
-                                        ? Color(color)
-                                        : null,
-                                    onPressed: () {
+                              width: itemWidth,
+                              height: itemWidth,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  EffectGestureDetector(
+                                    child: ColorSchemeBox(
+                                      isSelected: color == primaryColor,
+                                      primaryColor: color != null
+                                          ? Color(color)
+                                          : null,
+                                      onPressed: () {
+                                        setState(() {
+                                          _removablePrimaryColor = null;
+                                        });
+                                        ref
+                                            .read(themeSettingProvider.notifier)
+                                            .update(
+                                              (state) => state.copyWith(
+                                                primaryColor: color,
+                                              ),
+                                            );
+                                      },
+                                    ),
+                                    onLongPress: () {
                                       setState(() {
-                                        _removablePrimaryColor = null;
+                                        _removablePrimaryColor = color;
                                       });
-                                      ref
-                                          .read(themeSettingProvider.notifier)
-                                          .update(
-                                            (state) => state.copyWith(
-                                              primaryColor: color,
-                                            ),
-                                          );
                                     },
                                   ),
-                                  onLongPress: () {
-                                    setState(() {
-                                      _removablePrimaryColor = color;
-                                    });
-                                  },
-                                ),
-                                if (_removablePrimaryColor != null &&
-                                    _removablePrimaryColor == color)
-                                  Container(
-                                    color: Colors.white.opacity0,
-                                    padding: const EdgeInsets.all(8),
-                                    child: IconButton.filledTonal(
-                                      onPressed: _handleDel,
-                                      padding: const EdgeInsets.all(12),
-                                      iconSize: 30,
-                                      icon: Icon(
-                                        color: context.colorScheme.primary,
-                                        Icons.delete,
+                                  if (_removablePrimaryColor != null &&
+                                      _removablePrimaryColor == color)
+                                    Container(
+                                      color: Colors.white.opacity0,
+                                      padding: const EdgeInsets.all(8),
+                                      child: IconButton.filledTonal(
+                                        onPressed: _handleDel,
+                                        padding: const EdgeInsets.all(12),
+                                        iconSize: 30,
+                                        icon: Icon(
+                                          color: context.colorScheme.primary,
+                                          Icons.delete,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        if (_removablePrimaryColor == null)
-                          Container(
-                            width: itemWidth,
-                            height: itemWidth,
-                            padding: const EdgeInsets.all(4),
-                            child: IconButton.filledTonal(
-                              onPressed: _handleAdd,
-                              iconSize: 32,
-                              icon: Icon(
-                                color: context.colorScheme.primary,
-                                Icons.add,
+                                ],
                               ),
                             ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
+                          if (_removablePrimaryColor == null)
+                            Container(
+                              width: itemWidth,
+                              height: itemWidth,
+                              padding: const EdgeInsets.all(4),
+                              child: IconButton.filledTonal(
+                                onPressed: _handleAdd,
+                                iconSize: 32,
+                                icon: Icon(
+                                  color: context.colorScheme.primary,
+                                  Icons.add,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
               ],
             ),
           ),
@@ -530,11 +547,24 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
 
 class MonetColorsSetting extends ConsumerWidget {
   final bool? value;
+  @visibleForTesting
+  final bool? isAndroid;
 
-  const MonetColorsSetting({super.key, this.value});
+  const MonetColorsSetting({
+    super.key,
+    this.value,
+    @visibleForTesting this.isAndroid,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final interfaceStyle = ref.watch(
+      themeSettingProvider.select((state) => state.interfaceStyle),
+    );
+    if (!(isAndroid ?? system.isAndroid) ||
+        interfaceStyle != InterfaceStyle.miuix) {
+      return const SizedBox.shrink();
+    }
     final bool enableMonetColors =
         value ??
         ref.watch(
@@ -554,17 +584,31 @@ class MonetColorsSetting extends ConsumerWidget {
   }
 }
 
-class _PrueBlackItem extends ConsumerWidget {
-  const _PrueBlackItem();
+class PureBlackSetting extends ConsumerWidget {
+  final bool isAndroid;
+
+  const PureBlackSetting({super.key, required this.isAndroid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
-    final prueBlack = ref.watch(
-      themeSettingProvider.select((state) => state.pureBlack),
+    final theme = ref.watch(
+      themeSettingProvider.select(
+        (state) => (
+          pureBlack: state.pureBlack,
+          interfaceStyle: state.interfaceStyle,
+          enableMonetColors: state.enableMonetColors,
+        ),
+      ),
     );
-    return SliverToBoxAdapter(
+    final disabled =
+        isAndroid &&
+        theme.interfaceStyle == InterfaceStyle.miuix &&
+        !theme.enableMonetColors;
+    return DisabledMask(
+      status: disabled,
       child: ListItem.toggle(
+        key: const ValueKey('pure-black-toggle'),
         leading: const Icon(Icons.contrast),
         horizontalTitleGap: 12,
         title: Text(
@@ -573,12 +617,14 @@ class _PrueBlackItem extends ConsumerWidget {
             color: context.colorScheme.onSurfaceVariant,
           ),
         ),
-        value: prueBlack,
-        onChanged: (value) {
-          ref
-              .read(themeSettingProvider.notifier)
-              .update((state) => state.copyWith(pureBlack: value));
-        },
+        value: theme.pureBlack,
+        onChanged: disabled
+            ? null
+            : (value) {
+                ref
+                    .read(themeSettingProvider.notifier)
+                    .update((state) => state.copyWith(pureBlack: value));
+              },
       ),
     );
   }

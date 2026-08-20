@@ -89,6 +89,59 @@ void main() {
     expect(find.byIcon(Icons.power_settings_new_rounded), findsOneWidget);
   });
 
+  testWidgets('Miuix dashboard uses authoritative core status', (tester) async {
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
+    await tester.pumpWidget(buildApp(const DashboardView()));
+    await tester.pump();
+
+    final context = tester.element(find.byType(DashboardView));
+    expect(find.text(context.appLocalizations.connecting), findsWidgets);
+    expect(find.byIcon(Icons.sync_rounded), findsOneWidget);
+  });
+
+  testWidgets('Miuix ListItem preserves explicit caller dimensions', (
+    tester,
+  ) async {
+    const padding = EdgeInsets.fromLTRB(31, 17, 29, 19);
+    await tester.pumpWidget(
+      buildApp(
+        const Scaffold(
+          body: ListItem(
+            title: Text('Explicit sizing'),
+            minTileHeight: 96,
+            minVerticalPadding: 24,
+            padding: padding,
+          ),
+        ),
+      ),
+    );
+
+    final tile = tester.widget<ListTile>(find.byType(ListTile));
+    expect(tile.minTileHeight, 96);
+    expect(tile.minVerticalPadding, 24);
+    expect(tile.contentPadding, padding);
+  });
+
+  testWidgets('Miuix ListItem defaults use Miuix content padding', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildApp(
+        Scaffold(
+          body: ListItem.toggle(title: const Text('Toggle'), value: false),
+        ),
+      ),
+    );
+
+    final tile = tester.widget<ListTile>(find.byType(ListTile));
+    expect(
+      tile.contentPadding,
+      const EdgeInsets.symmetric(
+        horizontal: AndroidAppearanceTokens.miuixListHorizontalPadding,
+      ),
+    );
+  });
+
   testWidgets('Miuix dashboard hero adapts to large text', (tester) async {
     await tester.pumpWidget(
       buildApp(
