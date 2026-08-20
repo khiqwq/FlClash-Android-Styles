@@ -110,6 +110,12 @@ void main() {
     expect(releaseWorkflow, contains('Verify Android APK identity'));
     expect(
       releaseWorkflow,
+      contains(
+        'softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228',
+      ),
+    );
+    expect(
+      releaseWorkflow,
       contains('Verified using v2 scheme (APK Signature Scheme v2): true'),
     );
     expect(releaseWorkflow, isNot(contains('pip install requests')));
