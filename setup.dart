@@ -255,12 +255,7 @@ Future<int> _ensureMacosDependencies(String rootDir) async {
     return 1;
   }
   stdout.writeln('Installing locked appdmg $appdmgVersion tooling...');
-  final result = await Process.run('npm', [
-    'ci',
-    '--ignore-scripts',
-    '--prefix',
-    toolingDir,
-  ]);
+  final result = await Process.run('npm', ['ci', '--prefix', toolingDir]);
   if (result.exitCode != 0) {
     stderr.write(result.stderr);
   }
