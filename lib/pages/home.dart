@@ -148,7 +148,10 @@ class _MiuixNavigationItem extends StatelessWidget {
 }
 
 class HomePage extends ConsumerWidget {
-  const HomePage({super.key});
+  @visibleForTesting
+  final bool? isAndroid;
+
+  const HomePage({super.key, @visibleForTesting this.isAndroid});
 
   void _handleToPage(PageLabel pageLabel) {
     globalState.container
@@ -158,6 +161,7 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAndroid = this.isAndroid ?? system.isAndroid;
     final hasViewSize = ref.watch(
       viewSizeProvider.select((size) => !size.isEmpty),
     );
@@ -165,6 +169,7 @@ class HomePage extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     return HomeBackScopeContainer(
+      isAndroid: isAndroid,
       child: AppSidebarContainer(
         child: Material(
           color: context.colorScheme.surface,
@@ -358,6 +363,10 @@ class HomePage extends ConsumerWidget {
                     .watch(currentNavigationItemsStateProvider)
                     .value;
                 final isMobile = ref.watch(isMobileViewProvider);
+                final useNestedNavigator = shouldUseNestedHomeNavigator(
+                  isAndroid: isAndroid,
+                  isMobileView: isMobile,
+                );
                 return _HomePageView(
                   navigationItems: navigationItems,
                   pageBuilder: (_, index) {
@@ -367,15 +376,15 @@ class HomePage extends ConsumerWidget {
                     final view = KeepScope(
                       key: ValueKey(navigationItem.label),
                       keep: navigationItem.keep,
-                      child: isMobile
-                          ? scopedView
-                          : Navigator(
+                      child: useNestedNavigator
+                          ? Navigator(
                               key: ValueKey(
                                 '${navigationItem.label.name}_navigator',
                               ),
                               pages: [MaterialPage(child: scopedView)],
                               onDidRemovePage: (_) {},
-                            ),
+                            )
+                          : scopedView,
                     );
                     return Consumer(
                       key: ValueKey(navigationItem.label),

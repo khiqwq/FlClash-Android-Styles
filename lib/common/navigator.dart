@@ -5,9 +5,13 @@ import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
 
 class BaseNavigator {
-  static Future<T?> push<T>(BuildContext context, Widget child) async {
+  static Future<T?> push<T>(
+    BuildContext context,
+    Widget child, {
+    @visibleForTesting bool? isDesktop,
+  }) async {
     final useDesktopRoute = shouldUseCommonDesktopRoute(
-      isDesktop: system.isDesktop,
+      isDesktop: isDesktop ?? system.isDesktop,
       isMobileView: globalState.container.read(isMobileViewProvider),
     );
     if (useDesktopRoute) {
@@ -27,6 +31,13 @@ bool shouldUseCommonDesktopRoute({
   required bool isMobileView,
 }) {
   return isDesktop && !isMobileView;
+}
+
+bool shouldUseNestedHomeNavigator({
+  required bool isAndroid,
+  required bool isMobileView,
+}) {
+  return !isAndroid && !isMobileView;
 }
 
 abstract interface class CommonRouteResultHost {
