@@ -552,6 +552,38 @@ void main() {
     semanticsHandle.dispose();
   });
 
+  testWidgets('expired superseded value becomes authoritative again', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final callbacks = <int>[];
+    final key = await _pumpToggle(
+      tester,
+      acknowledgeSelections: false,
+      callbacks: callbacks,
+    );
+
+    await tester.tap(_item(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.tap(_item(2));
+    await tester.pump(const Duration(milliseconds: 1));
+    key.currentState!.acknowledge(2);
+    await tester.pump(const Duration(milliseconds: 300));
+    key.currentState!.acknowledge(1);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .getSemantics(_semantics(1))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+    semanticsHandle.dispose();
+  });
+
   testWidgets('pending selection reconciles when items shrink', (tester) async {
     final semanticsHandle = tester.ensureSemantics();
     final callbacks = <int>[];
