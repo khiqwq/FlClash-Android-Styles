@@ -57,6 +57,45 @@ void main() {
     }
   });
 
+  test('artifact workflows verify immutable tools and APK identity', () {
+    final interfaceWorkflow = File(
+      '.github/workflows/android-interface-build.yml',
+    ).readAsStringSync();
+    final releaseWorkflow = File(
+      '.github/workflows/build.yaml',
+    ).readAsStringSync();
+
+    expect(interfaceWorkflow, contains('cache: false'));
+    expect(interfaceWorkflow, contains('Verify release APK identity'));
+    expect(interfaceWorkflow, contains('com.follow.clash.dev'));
+    expect(
+      interfaceWorkflow,
+      contains('V2 Signer: certificate SHA-256 digest'),
+    );
+    expect(
+      interfaceWorkflow,
+      contains(
+        '6f301ced512a8d62d5d39182f3a2afa7b9ce95e4edc465637e1a1f61a9a20ac2',
+      ),
+    );
+    expect(releaseWorkflow, contains('cache: false'));
+    expect(
+      releaseWorkflow,
+      contains(
+        'aiogram/telegram-bot-api@sha256:6706cc91b0d630b90e246567c1735e13c0cc152f5832e79db708d6c6de4dff3f',
+      ),
+    );
+    expect(releaseWorkflow, isNot(contains(':latest')));
+    expect(releaseWorkflow, contains('--default-toolchain 1.98.0'));
+    expect(
+      releaseWorkflow,
+      contains(
+        '3af309e6c3062aa11df0e932954f69d13b734d8a431e593812f3ecd9ff9e6ef6',
+      ),
+    );
+    expect(releaseWorkflow, contains('Verify Android APK identity'));
+  });
+
   test('GitHub preview builds pin tools and fixed development signing', () {
     final workflow = File(
       '.github/workflows/android-interface-build.yml',
@@ -74,20 +113,20 @@ void main() {
     );
     expect(
       workflow,
-      contains('actions/checkout@11d5960a326750d5838078e36cf38b85af677262'),
+      contains('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'),
     );
     expect(
       workflow,
-      contains('actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3'),
+      contains('actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961'),
     );
     expect(
       workflow,
-      contains('actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff'),
+      contains('actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e'),
     );
     expect(
       workflow,
       contains(
-        'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
+        'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
       ),
     );
     for (final movableTag in <String>[
