@@ -34,6 +34,119 @@ abstract final class AndroidAppearanceTokens {
   );
 }
 
+ColorScheme miuixDefaultColorScheme(Brightness brightness) {
+  return switch (brightness) {
+    Brightness.light => _miuixLightColorScheme(),
+    Brightness.dark => _miuixDarkColorScheme(),
+  };
+}
+
+Color miuixOnSurfaceContainer(Brightness brightness) {
+  return brightness == Brightness.dark ? const Color(0xE6FFFFFF) : Colors.black;
+}
+
+ColorScheme _miuixLightColorScheme() {
+  const primary = Color(0xFF3482FF);
+  return ColorScheme.fromSeed(
+    seedColor: primary,
+    brightness: Brightness.light,
+  ).copyWith(
+    primary: primary,
+    onPrimary: Colors.white,
+    primaryContainer: const Color(0xFF5D9BFF),
+    onPrimaryContainer: Colors.white,
+    primaryFixed: primary,
+    primaryFixedDim: const Color(0xFF5D9BFF),
+    onPrimaryFixed: Colors.white,
+    onPrimaryFixedVariant: const Color(0xFFAECDFF),
+    secondary: const Color(0xFFE6E6E6),
+    onSecondary: Colors.white,
+    secondaryContainer: const Color(0xFFF0F0F0),
+    onSecondaryContainer: const Color(0xFFA9A9A9),
+    secondaryFixed: const Color(0xFFE6E6E6),
+    secondaryFixedDim: const Color(0xFFF0F0F0),
+    onSecondaryFixed: const Color(0xFF303030),
+    onSecondaryFixedVariant: const Color(0xFFA8A8A8),
+    tertiary: const Color(0xFF3482FF),
+    onTertiary: Colors.white,
+    tertiaryContainer: const Color(0xFFEAF2FF),
+    onTertiaryContainer: const Color(0xFF3482FF),
+    error: const Color(0xFFE94634),
+    onError: Colors.white,
+    errorContainer: const Color(0xFFFDF6F4),
+    onErrorContainer: const Color(0xFF410002),
+    surface: const Color(0xFFF7F7F7),
+    onSurface: Colors.black,
+    surfaceDim: const Color(0xFFF7F7F7),
+    surfaceBright: Colors.white,
+    surfaceContainerLowest: Colors.white,
+    surfaceContainerLow: Colors.white,
+    surfaceContainer: Colors.white,
+    surfaceContainerHigh: const Color(0xFFE8E8E8),
+    surfaceContainerHighest: const Color(0xFFE8E8E8),
+    onSurfaceVariant: const Color(0x99000000),
+    outline: const Color(0xFFD9D9D9),
+    outlineVariant: const Color(0xFFE0E0E0),
+    shadow: Colors.black,
+    scrim: const Color(0x4D000000),
+    inverseSurface: const Color(0xFF242424),
+    onInverseSurface: const Color(0xFFF2F2F2),
+    inversePrimary: const Color(0xFF277AF7),
+    surfaceTint: Colors.transparent,
+  );
+}
+
+ColorScheme _miuixDarkColorScheme() {
+  const primary = Color(0xFF277AF7);
+  return ColorScheme.fromSeed(
+    seedColor: primary,
+    brightness: Brightness.dark,
+  ).copyWith(
+    primary: primary,
+    onPrimary: Colors.white,
+    primaryContainer: const Color(0xFF338FE4),
+    onPrimaryContainer: Colors.white,
+    primaryFixed: primary,
+    primaryFixedDim: const Color(0xFF338FE4),
+    onPrimaryFixed: Colors.white,
+    onPrimaryFixedVariant: const Color(0xFF99C7F1),
+    secondary: const Color(0xFF505050),
+    onSecondary: Colors.white,
+    secondaryContainer: const Color(0xFF434343),
+    onSecondaryContainer: const Color(0xFF7C7C7C),
+    secondaryFixed: const Color(0xFF505050),
+    secondaryFixedDim: const Color(0xFF434343),
+    onSecondaryFixed: const Color(0xFFD9D9D9),
+    onSecondaryFixedVariant: const Color(0xFF959595),
+    tertiary: const Color(0xFF4788FF),
+    onTertiary: Colors.white,
+    tertiaryContainer: const Color(0xFF2B3B54),
+    onTertiaryContainer: const Color(0xFF4788FF),
+    error: const Color(0xFFF12522),
+    onError: Colors.white,
+    errorContainer: const Color(0xFF2E0603),
+    onErrorContainer: const Color(0xFFFFDAD6),
+    surface: Colors.black,
+    onSurface: const Color(0xFFF2F2F2),
+    surfaceDim: Colors.black,
+    surfaceBright: const Color(0xFF2D2D2D),
+    surfaceContainerLowest: Colors.black,
+    surfaceContainerLow: const Color(0xFF242424),
+    surfaceContainer: const Color(0xFF242424),
+    surfaceContainerHigh: const Color(0xFF242424),
+    surfaceContainerHighest: const Color(0xFF2D2D2D),
+    onSurfaceVariant: const Color(0x80FFFFFF),
+    outline: const Color(0xFF404040),
+    outlineVariant: const Color(0xFF393939),
+    shadow: Colors.black,
+    scrim: const Color(0x99000000),
+    inverseSurface: const Color(0xFFF7F7F7),
+    onInverseSurface: Colors.black,
+    inversePrimary: const Color(0xFF3482FF),
+    surfaceTint: Colors.transparent,
+  );
+}
+
 @immutable
 class AppearanceTheme extends ThemeExtension<AppearanceTheme> {
   final bool isAndroid;
@@ -121,6 +234,25 @@ ThemeData applyAppearanceComponentTheme(
     shape: WidgetStatePropertyAll(componentShape),
   );
   final colorScheme = theme.colorScheme;
+  final isDark = colorScheme.brightness == Brightness.dark;
+  final disabledPrimary = isDark
+      ? const Color(0xFF253E64)
+      : const Color(0xFFC2D9FF);
+  final disabledOnPrimary = isDark
+      ? const Color(0xFF677993)
+      : const Color(0xFFF3F8FF);
+  final disabledSecondary = isDark
+      ? const Color(0xFF3F3F3F)
+      : const Color(0xFFF0F0F0);
+  final disabledOnSecondary = isDark
+      ? const Color(0xFF797979)
+      : const Color(0xFFFCFCFC);
+  final disabledPrimarySlider = isDark
+      ? const Color(0xFF44587C)
+      : const Color(0xFFB8CFF5);
+  final sliderBackground = isDark
+      ? const Color(0x26FFFFFF)
+      : const Color(0x0F000000);
   final textTheme = theme.textTheme.copyWith(
     headlineSmall: theme.textTheme.headlineSmall?.copyWith(
       fontSize: 32,
@@ -134,9 +266,10 @@ ThemeData applyAppearanceComponentTheme(
       fontWeight: FontWeight.w400,
     ),
     titleMedium: theme.textTheme.titleMedium?.copyWith(
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
+      fontSize: 17,
+      fontWeight: FontWeight.w500,
     ),
+    bodyMedium: theme.textTheme.bodyMedium?.copyWith(fontSize: 14),
   );
   return theme.copyWith(
     colorScheme: colorScheme,
@@ -200,15 +333,83 @@ ThemeData applyAppearanceComponentTheme(
     ),
     switchTheme: theme.switchTheme.copyWith(
       trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
-      trackColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
-            ? colorScheme.primary
-            : colorScheme.surfaceContainerHighest,
-      ),
-      thumbColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        if (states.contains(WidgetState.disabled)) {
+          return selected ? disabledPrimary : disabledSecondary;
+        }
+        return selected ? colorScheme.primary : colorScheme.secondary;
+      }),
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        if (states.contains(WidgetState.disabled)) {
+          return selected ? disabledOnPrimary : disabledOnSecondary;
+        }
+        return selected ? colorScheme.onPrimary : colorScheme.onSecondary;
+      }),
+    ),
+    checkboxTheme: theme.checkboxTheme.copyWith(
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        if (states.contains(WidgetState.disabled)) {
+          return selected ? disabledPrimary : disabledSecondary;
+        }
+        return selected ? colorScheme.primary : colorScheme.secondary;
+      }),
+      checkColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return states.contains(WidgetState.selected)
+              ? disabledOnPrimary
+              : disabledOnSecondary;
+        }
+        return states.contains(WidgetState.selected)
             ? colorScheme.onPrimary
-            : colorScheme.onSurfaceVariant,
+            : colorScheme.onSecondary;
+      }),
+    ),
+    radioTheme: theme.radioTheme.copyWith(
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        if (states.contains(WidgetState.disabled)) {
+          return selected ? disabledPrimary : disabledSecondary;
+        }
+        return selected ? colorScheme.primary : colorScheme.secondary;
+      }),
+    ),
+    sliderTheme: theme.sliderTheme.copyWith(
+      activeTrackColor: colorScheme.primary,
+      inactiveTrackColor: sliderBackground,
+      disabledActiveTrackColor: disabledPrimarySlider,
+      disabledInactiveTrackColor: sliderBackground,
+      thumbColor: colorScheme.primary,
+      disabledThumbColor: disabledPrimarySlider,
+      activeTickMarkColor: colorScheme.onPrimary,
+      inactiveTickMarkColor: colorScheme.outline,
+    ),
+    inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+      filled: true,
+      fillColor: colorScheme.secondaryContainer,
+      labelStyle: TextStyle(color: colorScheme.onSecondaryContainer),
+      floatingLabelStyle: TextStyle(color: colorScheme.primary),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(
+          AndroidAppearanceTokens.miuixComponentCornerRadius,
+        ),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(
+          AndroidAppearanceTokens.miuixComponentCornerRadius,
+        ),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(
+          AndroidAppearanceTokens.miuixComponentCornerRadius,
+        ),
+        borderSide: BorderSide(color: colorScheme.primary, width: 2),
       ),
     ),
   );

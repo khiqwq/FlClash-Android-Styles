@@ -181,8 +181,13 @@ class CommonCard extends StatelessWidget {
 
   Color? _buildForegroundColor(BuildContext context) {
     final colorScheme = context.colorScheme;
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
     if (isError) {
       return colorScheme.error;
+    }
+    if (isMiuix && isSelected) {
+      return colorScheme.onPrimaryContainer;
     }
     if (type == CommonCardType.filled) {
       if (isSelected) {
@@ -198,8 +203,13 @@ class CommonCard extends StatelessWidget {
 
   Color? _buildIconColor(BuildContext context) {
     final colorScheme = context.colorScheme;
+    final isMiuix =
+        Theme.of(context).extension<AppearanceTheme>()?.isMiuix == true;
     if (isError) {
       return colorScheme.error;
+    }
+    if (isMiuix && isSelected) {
+      return colorScheme.onPrimaryContainer;
     }
     return colorScheme.primary;
   }

@@ -194,19 +194,22 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
       Directionality.of(context),
     );
     final defaultIntensity = 0.45 + progress * 0.55;
+    final refractionHeight =
+        widget.liquidRefractionHeight ??
+        AndroidAppearanceTokens.liquidGlassRefractionHeight * defaultIntensity;
+    final refractionAmount =
+        widget.liquidRefractionAmount ??
+        AndroidAppearanceTokens.liquidGlassRefractionAmount * defaultIntensity;
+    if (refractionHeight <= 0 || refractionAmount <= 0) {
+      return blur;
+    }
     final uniforms = LiquidGlassUniforms(
       inputSize: inputSize,
       shapeOrigin: Offset(samplePadding, samplePadding),
       shapeSize: shapeSize,
       cornerRadii: resolvedRadii,
-      refractionHeight:
-          widget.liquidRefractionHeight ??
-          AndroidAppearanceTokens.liquidGlassRefractionHeight *
-              defaultIntensity,
-      refractionAmount:
-          widget.liquidRefractionAmount ??
-          AndroidAppearanceTokens.liquidGlassRefractionAmount *
-              defaultIntensity,
+      refractionHeight: refractionHeight,
+      refractionAmount: refractionAmount,
       chromaticAberration:
           widget.liquidChromaticAberration ??
           AndroidAppearanceTokens.liquidGlassChromaticAberration *
@@ -233,7 +236,7 @@ class _AndroidGlassSurfaceState extends State<AndroidGlassSurface> {
     }
     final colorScheme = Theme.of(context).colorScheme;
     final progress = widget.liquidProgress.clamp(0.0, 1.0);
-    final rimProgress = 0.35 + progress * 0.65;
+    final rimProgress = progress;
     final shape =
         widget.shape ??
         RoundedSuperellipseBorder(borderRadius: widget.borderRadius);

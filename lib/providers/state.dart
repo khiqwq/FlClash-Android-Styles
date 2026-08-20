@@ -1,5 +1,6 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/theme.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/database/database.dart';
 import 'package:fl_clash/enum/enum.dart';
@@ -493,13 +494,25 @@ ColorScheme genColorScheme(
   Brightness brightness, {
   Color? color,
   bool ignoreConfig = false,
+  bool? isAndroid,
 }) {
   final theme = ref.watch(
     themeSettingProvider.select(
-      (state) =>
-          VM3(state.primaryColor, state.schemeVariant, state.enableMonetColors),
+      (state) => VM4(
+        state.primaryColor,
+        state.schemeVariant,
+        state.enableMonetColors,
+        state.interfaceStyle,
+      ),
     ),
   );
+  final useAndroidPalette = isAndroid ?? system.isAndroid;
+  if (color == null &&
+      useAndroidPalette &&
+      !theme.c &&
+      theme.d == InterfaceStyle.miuix) {
+    return miuixDefaultColorScheme(brightness);
+  }
   final useMonetColors =
       theme.c && color == null && (ignoreConfig || theme.a == null);
   final seedColor = useMonetColors
