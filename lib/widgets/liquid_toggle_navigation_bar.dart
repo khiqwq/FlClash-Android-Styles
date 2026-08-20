@@ -64,6 +64,8 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   int _committedIndex = 0;
   int? _deferredExternalIndex;
   int? _awaitingExternalIndex;
+  int? _awaitingExternalBaselineIndex;
+  final Set<int> _supersededExternalIndices = {};
   int? _activePointer;
   int? _directTapIndex;
   bool _didDrag = false;
@@ -126,15 +128,32 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   @override
   void didUpdateWidget(covariant LiquidToggleNavigationBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final selectedIndex = _clampIndex(widget.selectedIndex);
+    if (widget.items.length > oldWidget.items.length) {
+      _supersededExternalIndices.removeWhere(_isItemIndex);
+    }
+    var selectedIndex = _clampIndex(widget.selectedIndex);
+    final awaitingExternalIndex = _awaitingExternalIndex;
+    if (oldWidget.items.length != widget.items.length &&
+        awaitingExternalIndex != null &&
+        widget.selectedIndex == awaitingExternalIndex &&
+        !_isItemIndex(widget.selectedIndex)) {
+      _supersededExternalIndices.add(widget.selectedIndex);
+      selectedIndex = _clampIndex(oldWidget.selectedIndex);
+    }
     if (!_canPreserveSelectionState(oldWidget)) {
       _reconcileSelection(selectedIndex);
+      return;
+    }
+    if (_supersededExternalIndices.contains(widget.selectedIndex) &&
+        widget.selectedIndex != _awaitingExternalIndex &&
+        (_awaitingExternalIndex == null ||
+            _awaitingExternalIndex == _awaitingExternalBaselineIndex)) {
       return;
     }
     if (_activePointer != null) {
       if (_awaitingExternalIndex != null) {
         if (selectedIndex == _awaitingExternalIndex) {
-          _awaitingExternalIndex = null;
+          _clearAwaitingExternalIndex();
           return;
         }
         if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
@@ -148,13 +167,13 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     }
     if (_awaitingExternalIndex != null) {
       if (selectedIndex == _awaitingExternalIndex) {
-        _awaitingExternalIndex = null;
+        _clearAwaitingExternalIndex();
         return;
       }
       if (selectedIndex == _clampIndex(oldWidget.selectedIndex)) {
         return;
       }
-      _awaitingExternalIndex = null;
+      _clearAwaitingExternalIndex();
     }
     if (selectedIndex == _committedIndex &&
         oldWidget.items.length == widget.items.length) {
@@ -207,16 +226,41 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     return (_activePointer == null) == (_directTapIndex == null);
   }
 
+  void _setAwaitingExternalIndex(int index) {
+    final previousIndex = _awaitingExternalIndex;
+    if (previousIndex != null && previousIndex != index) {
+      _supersededExternalIndices.add(previousIndex);
+    }
+    _awaitingExternalIndex = index;
+    _awaitingExternalBaselineIndex = widget.selectedIndex;
+  }
+
+  void _clearAwaitingExternalIndex() {
+    _awaitingExternalIndex = null;
+    _awaitingExternalBaselineIndex = null;
+    _supersededExternalIndices.clear();
+  }
+
   void _reconcileSelection(int selectedIndex) {
+    final awaitingExternalIndex = _awaitingExternalIndex;
+    if (awaitingExternalIndex != null &&
+        awaitingExternalIndex != selectedIndex) {
+      _supersededExternalIndices.add(awaitingExternalIndex);
+    }
     _releaseEpoch++;
     _clearPointerInteraction();
     _stopVelocityTracking();
     _releasePress();
     _committedIndex = selectedIndex;
     _awaitingExternalIndex = null;
+    _awaitingExternalBaselineIndex = null;
     _deferredExternalIndex = null;
     _fraction = selectedIndex.toDouble();
     _animateToValue(_fraction);
+  }
+
+  bool _isItemIndex(int index) {
+    return index >= 0 && index < widget.items.length;
   }
 
   int _clampIndex(int index) {
@@ -518,7 +562,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     _deferredExternalIndex = null;
     if (!didDrag && deferredIndex != null) {
       _committedIndex = deferredIndex;
-      _awaitingExternalIndex = null;
+      _clearAwaitingExternalIndex();
       _fraction = deferredIndex.toDouble();
       _animatePosition(_fraction, trackVelocity: false);
       _scheduleRelease();
@@ -535,7 +579,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     final target = didDrag ? _clampIndex(_fraction.round()) : _committedIndex;
     final changed = target != _committedIndex;
     _committedIndex = target;
-    _awaitingExternalIndex = changed ? target : null;
+    if (changed) {
+      _setAwaitingExternalIndex(target);
+    }
     _fraction = target.toDouble();
     if (didDrag) {
       _updateValue(_fraction);
@@ -551,7 +597,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   void _applyExternalSelection(int index) {
     final target = _clampIndex(index);
     _committedIndex = target;
-    _awaitingExternalIndex = null;
+    _clearAwaitingExternalIndex();
     _fraction = target.toDouble();
     _animateToValue(_fraction);
   }
@@ -563,7 +609,9 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     final target = _clampIndex(index);
     final changed = target != _committedIndex;
     _committedIndex = target;
-    _awaitingExternalIndex = changed ? target : null;
+    if (changed) {
+      _setAwaitingExternalIndex(target);
+    }
     _fraction = target.toDouble();
     _animateToValue(_fraction);
     if (changed) {
@@ -913,10 +961,9 @@ class _LiquidNavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = miuixOnSurfaceContainer(Theme.brightnessOf(context));
-    final color = surfaceColor.withValues(
-      alpha: selected ? surfaceColor.a : surfaceColor.a * 0.4,
-    );
+    final color = selected
+        ? miuixOnSurfaceContainer(Theme.brightnessOf(context))
+        : context.colorScheme.onSurfaceVariant;
     return ExcludeSemantics(
       child: _LiquidNavigationContent(
         item: item,

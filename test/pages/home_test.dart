@@ -776,6 +776,67 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('removing the current navigation item selects fallback content', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    List<NavigationItem> items() => [
+      NavigationItem(
+        icon: const Icon(Icons.space_dashboard),
+        label: PageLabel.dashboard,
+        builder: (_) => const Center(child: Text('dashboard page')),
+      ),
+      NavigationItem(
+        icon: const Icon(Icons.route),
+        label: PageLabel.proxies,
+        builder: (_) => const Center(child: Text('proxies page')),
+      ),
+      NavigationItem(
+        icon: const Icon(Icons.folder),
+        label: PageLabel.profiles,
+        builder: (_) => const Center(child: Text('profiles page')),
+      ),
+    ];
+    final container = ProviderContainer(
+      overrides: [
+        navigationItemsStateProvider.overrideWithValue(
+          NavigationItemsState(value: items()),
+        ),
+      ],
+    );
+    globalState.container = container;
+    container.read(viewSizeProvider.notifier).value = const Size(390, 800);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const _TestApp(child: HomePage()),
+      ),
+    );
+    await tester.pump();
+    container.read(currentPageLabelProvider.notifier).toPage(PageLabel.proxies);
+    await tester.pumpAndSettle();
+    expect(find.text('proxies page'), findsOneWidget);
+
+    container.updateOverrides([
+      navigationItemsStateProvider.overrideWithValue(
+        NavigationItemsState(value: [items().first, items().last]),
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(container.read(currentPageLabelProvider), PageLabel.dashboard);
+    expect(find.text('dashboard page'), findsOneWidget);
+    expect(find.text('profiles page'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    container.dispose();
+    await tester.pump();
+  });
+
   testWidgets('Android root back stays system-owned when minimizing', (
     tester,
   ) async {
