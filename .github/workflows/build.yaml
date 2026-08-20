@@ -72,6 +72,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version: '1.26.4'
+          cache: false
           cache-dependency-path: core/go.sum
 
       - name: Validate Go core wrapper
@@ -153,6 +154,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version: '1.26.4'
+          cache: false
           cache-dependency-path: |
             core/go.sum
 
@@ -215,6 +217,7 @@ jobs:
             test "$package" = "$EXPECTED_PACKAGE"
             verify_output=$($build_tools/apksigner verify --verbose --print-certs "$apk")
             printf '%s\n' "$verify_output"
+            grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' <<< "$verify_output"
             cert=$(sed -n -e 's/^V2 Signer: certificate SHA-256 digest: //p' -e 's/^Signer #1 certificate SHA-256 digest: //p' <<< "$verify_output" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
             test "$cert" = "$EXPECTED_CERT_SHA256"
           done
@@ -321,10 +324,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TAG: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-          python release_telegram.py
+        run: python release_telegram.py
 
       - name: Patch release.md
         run: |

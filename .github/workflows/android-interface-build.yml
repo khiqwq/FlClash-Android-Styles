@@ -31,6 +31,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version: '1.26.4'
+          cache: false
           cache-dependency-path: core/go.sum
 
       - name: Setup Flutter
@@ -47,20 +48,6 @@ jobs:
           ndk-version: r28c
           add-to-path: true
           link-to-sdk: true
-
-      - name: Setup development signing
-        env:
-          DEV_KEYSTORE: ${{ secrets.DEV_KEYSTORE }}
-          DEV_KEY_ALIAS: ${{ secrets.DEV_KEY_ALIAS }}
-          DEV_STORE_PASSWORD: ${{ secrets.DEV_STORE_PASSWORD }}
-          DEV_KEY_PASSWORD: ${{ secrets.DEV_KEY_PASSWORD }}
-        run: |
-          echo "$DEV_KEYSTORE" | base64 --decode > android/app/keystore.jks
-          {
-            echo "keyAlias=$DEV_KEY_ALIAS"
-            echo "storePassword=$DEV_STORE_PASSWORD"
-            echo "keyPassword=$DEV_KEY_PASSWORD"
-          } >> android/local.properties
 
       - name: Install dependencies
         run: flutter pub get
@@ -88,6 +75,20 @@ jobs:
           test/liquid_glass_shader_test.dart
           test/android_dev_signing_test.dart
           --reporter expanded
+
+      - name: Setup development signing
+        env:
+          DEV_KEYSTORE: ${{ secrets.DEV_KEYSTORE }}
+          DEV_KEY_ALIAS: ${{ secrets.DEV_KEY_ALIAS }}
+          DEV_STORE_PASSWORD: ${{ secrets.DEV_STORE_PASSWORD }}
+          DEV_KEY_PASSWORD: ${{ secrets.DEV_KEY_PASSWORD }}
+        run: |
+          echo "$DEV_KEYSTORE" | base64 --decode > android/app/keystore.jks
+          {
+            echo "keyAlias=$DEV_KEY_ALIAS"
+            echo "storePassword=$DEV_STORE_PASSWORD"
+            echo "keyPassword=$DEV_KEY_PASSWORD"
+          } >> android/local.properties
 
       - name: Build release APK
         env:
