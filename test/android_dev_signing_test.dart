@@ -70,6 +70,10 @@ void main() {
     expect(interfaceWorkflow, contains('com.follow.clash.dev'));
     expect(
       interfaceWorkflow,
+      contains('V2 Signer: certificate SHA-256 digest'),
+    );
+    expect(
+      interfaceWorkflow,
       contains(
         '6f301ced512a8d62d5d39182f3a2afa7b9ce95e4edc465637e1a1f61a9a20ac2',
       ),
