@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 const flutterDistributorRevision = 'cdeeef2d8f8325bb6ae0bc86b39f56e4325d1a58';
 const appdmgVersion = '0.6.6';
+const appdmgToolingPath = '.github/tooling/appdmg';
 const appImageToolSha256 =
     'b90f4a8b18967545fda78a445b27680a1642f1ef9488ced28b65398f2be7add2';
 
@@ -157,7 +158,7 @@ Future<int> _package(
     descriptionArgs.addAll(['--description', arch]);
   }
 
-  final depExit = await _ensureDependencies(platform, arch);
+  final depExit = await _ensureDependencies(platform, arch, rootDir);
   if (depExit != 0) return depExit;
 
   final activateResult = await Process.run('dart', [
@@ -177,6 +178,17 @@ Future<int> _package(
     return activateResult.exitCode;
   }
 
+  final environment = <String, String>{'ANDROID_ARCH': ?androidArch};
+  if (platform == 'macos') {
+    final appdmgBin = p.join(
+      rootDir,
+      appdmgToolingPath,
+      'node_modules',
+      '.bin',
+    );
+    environment['PATH'] =
+        '$appdmgBin${Platform.pathSeparator}${Platform.environment['PATH'] ?? ''}';
+  }
   final process = await Process.start(
     'flutter_distributor',
     [
@@ -193,7 +205,7 @@ Future<int> _package(
       ...descriptionArgs,
     ],
     includeParentEnvironment: true,
-    environment: {'ANDROID_ARCH': ?androidArch},
+    environment: environment,
     runInShell: Platform.isWindows,
   );
 
@@ -219,17 +231,14 @@ String _detectArch() {
   return machine;
 }
 
-Future<bool> _hasCommand(String cmd) async {
-  final which = Platform.isWindows ? 'where' : 'command';
-  final args = Platform.isWindows ? [cmd] : ['-v', cmd];
-  final result = await Process.run(which, args);
-  return result.exitCode == 0;
-}
-
-Future<int> _ensureDependencies(String platform, String arch) async {
+Future<int> _ensureDependencies(
+  String platform,
+  String arch,
+  String rootDir,
+) async {
   switch (platform) {
     case 'macos':
-      return _ensureMacosDependencies();
+      return _ensureMacosDependencies(rootDir);
     case 'linux':
       return _ensureLinuxDependencies(arch);
     default:
@@ -237,30 +246,20 @@ Future<int> _ensureDependencies(String platform, String arch) async {
   }
 }
 
-Future<int> _ensureMacosDependencies() async {
-  if (await _hasCommand('appdmg')) {
-    final installed = await Process.run('npm', [
-      'list',
-      '-g',
-      '--depth=0',
-      '--json',
-      'appdmg',
-    ]);
-    if (installed.exitCode == 0) {
-      final packages = jsonDecode(installed.stdout as String);
-      final dependencies = packages['dependencies'] as Map<String, dynamic>?;
-      final appdmg = dependencies?['appdmg'] as Map<String, dynamic>?;
-      if (appdmg?['version'] == appdmgVersion) {
-        stdout.writeln('appdmg $appdmgVersion already installed, skipping.');
-        return 0;
-      }
-    }
+Future<int> _ensureMacosDependencies(String rootDir) async {
+  final toolingDir = p.join(rootDir, appdmgToolingPath);
+  final packageJson = File(p.join(toolingDir, 'package.json'));
+  final packageLock = File(p.join(toolingDir, 'package-lock.json'));
+  if (!packageJson.existsSync() || !packageLock.existsSync()) {
+    stderr.writeln('Pinned appdmg tooling lockfile is missing.');
+    return 1;
   }
-  stdout.writeln('Installing appdmg $appdmgVersion (DMG creator)...');
+  stdout.writeln('Installing locked appdmg $appdmgVersion tooling...');
   final result = await Process.run('npm', [
-    'install',
-    '-g',
-    'appdmg@$appdmgVersion',
+    'ci',
+    '--ignore-scripts',
+    '--prefix',
+    toolingDir,
   ]);
   if (result.exitCode != 0) {
     stderr.write(result.stderr);

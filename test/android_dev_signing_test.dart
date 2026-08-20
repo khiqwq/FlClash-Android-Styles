@@ -108,6 +108,13 @@ void main() {
       ),
     );
     expect(releaseWorkflow, contains('Verify Android APK identity'));
+    expect(releaseWorkflow, contains('*android-arm64-v8a*.apk'));
+    expect(releaseWorkflow, contains('Validate release tag'));
+    expect(releaseWorkflow, contains('RELEASE_TAG'));
+    expect(
+      releaseWorkflow,
+      isNot(contains('cp ./dist/*android-arm64-v8a* ./tmp/ || true')),
+    );
     expect(
       releaseWorkflow,
       contains(
