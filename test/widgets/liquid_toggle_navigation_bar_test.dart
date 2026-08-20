@@ -462,6 +462,18 @@ void main() {
       true,
     );
 
+    key.currentState!.rebuild();
+    await tester.pump();
+    expect(
+      tester
+          .getSemantics(_semantics(1))
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected
+          .toBoolOrNull(),
+      true,
+    );
+
     key.currentState!.acknowledge(0);
     await tester.pumpAndSettle();
     expect(callbacks, [1, 0]);
