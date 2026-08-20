@@ -635,15 +635,17 @@ void main() {
     expect(contrast, greaterThanOrEqualTo(4.5));
   });
 
-  testWidgets('selected Liquid labels keep contrast in light and dark', (
+  testWidgets('selected Liquid labels keep contrast through press motion', (
     tester,
   ) async {
     for (final brightness in Brightness.values) {
+      final colorScheme = miuixDefaultColorScheme(brightness);
       await tester.pumpWidget(
         MaterialApp(
+          key: ValueKey(brightness),
           theme: ThemeData(
             brightness: brightness,
-            colorScheme: miuixDefaultColorScheme(brightness),
+            colorScheme: colorScheme,
             extensions: const [
               AppearanceTheme(
                 isAndroid: true,
@@ -666,14 +668,45 @@ void main() {
       );
       await tester.pump();
 
-      final label = tester.widget<Text>(
-        find.byKey(const ValueKey('liquid-accent-label-0')),
-      );
-      final foreground = label.style!.color!;
-      final lighter = foreground.computeLuminance() + 0.05;
-      final darker = Colors.white.computeLuminance() + 0.05;
-      final contrast = lighter > darker ? lighter / darker : darker / lighter;
-      expect(contrast, greaterThanOrEqualTo(4.5));
+      void expectContrast() {
+        final label = tester.widget<Text>(
+          find.byKey(const ValueKey('liquid-accent-label-selected')),
+        );
+        final surface = tester.widget<AndroidGlassSurface>(
+          find.byKey(const ValueKey('liquid-indicator-surface')),
+        );
+        final track = brightness == Brightness.dark
+            ? const Color(0xFF787880).withValues(alpha: 0.36)
+            : const Color(0xFF787878).withValues(alpha: 0.2);
+        final trackBackground = Color.alphaBlend(track, colorScheme.surface);
+        final surfaceBase = brightness == Brightness.dark
+            ? colorScheme.surfaceContainer
+            : Colors.white;
+        final indicatorBackground = Color.alphaBlend(
+          surfaceBase.withValues(alpha: 1 - surface.liquidProgress),
+          trackBackground,
+        );
+        final foreground = label.style!.color!;
+        final lighter = foreground.computeLuminance() + 0.05;
+        final darker = indicatorBackground.computeLuminance() + 0.05;
+        final contrast = lighter > darker ? lighter / darker : darker / lighter;
+        expect(
+          contrast,
+          greaterThanOrEqualTo(4.5),
+          reason:
+              '$brightness foreground=${foreground.toARGB32().toRadixString(16)} indicator=${indicatorBackground.toARGB32().toRadixString(16)} surface=${surfaceBase.toARGB32().toRadixString(16)} progress=${surface.liquidProgress}',
+        );
+      }
+
+      expectContrast();
+      final gesture = await tester.startGesture(tester.getCenter(_indicator));
+      for (var frame = 0; frame < 20; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expectContrast();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expectContrast();
     }
   });
 

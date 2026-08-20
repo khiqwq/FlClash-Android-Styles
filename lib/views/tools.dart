@@ -200,6 +200,10 @@ class InterfaceStyleSelector extends ConsumerWidget {
                 enableMonetColors: value == InterfaceStyle.material
                     ? true
                     : state.enableMonetColors,
+                primaryColor:
+                    value == InterfaceStyle.material || state.enableMonetColors
+                    ? null
+                    : state.primaryColor,
               ),
             );
       },

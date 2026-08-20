@@ -114,7 +114,9 @@ void main() {
       InterfaceStyle.material,
     );
     expect(container.read(themeSettingProvider).enableMonetColors, true);
+    expect(container.read(themeSettingProvider).primaryColor, isNull);
     expect(container.read(configProvider).themeProps.enableMonetColors, true);
+    expect(container.read(configProvider).themeProps.primaryColor, isNull);
   });
 
   testWidgets('Monet color toggle updates the persisted theme setting', (
@@ -141,6 +143,11 @@ void main() {
 
     expect(container.read(themeSettingProvider).enableMonetColors, false);
     expect(container.read(configProvider).themeProps.enableMonetColors, false);
+
+    await tester.tap(findListTileByKey('monet-colors-toggle'));
+    await tester.pump();
+    expect(container.read(themeSettingProvider).enableMonetColors, true);
+    expect(container.read(themeSettingProvider).primaryColor, isNull);
   });
 
   testWidgets('Monet controls follow Material and fixed Miuix modes', (
