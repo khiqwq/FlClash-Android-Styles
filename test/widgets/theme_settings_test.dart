@@ -86,6 +86,7 @@ void main() {
     final localizations = AppLocalizations.of(
       tester.element(find.byType(InterfaceStyleSelector)),
     );
+    expect(localizations.miuixStyle, 'Miuix');
 
     await tester.tap(findListTileByKey('interface-style-selector'));
     await tester.pumpAndSettle();

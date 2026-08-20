@@ -32,7 +32,7 @@
   "themeDesc": "インターフェース、テーマモード、色をカスタマイズ",
   "interfaceStyle": "インターフェーススタイル",
   "materialStyle": "Material",
-  "miuixStyle": "Miuix風",
+  "miuixStyle": "Miuix",
   "blur": "上下のバーをぼかす",
   "blurDesc": "半透明の背景で上下のバーをぼかします",
   "floatingBottomBar": "フローティングボトムバー",

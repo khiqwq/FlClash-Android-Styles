@@ -3,6 +3,7 @@ import 'package:fl_clash/common/system.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class BaseNavigator {
   static Future<T?> push<T>(
@@ -67,18 +68,255 @@ const commonSharedXPageTransitions = SharedAxisPageTransitionsBuilder(
   transitionType: SharedAxisTransitionType.horizontal,
   fillColor: Colors.transparent,
 );
+const commonSurfaceSharedXPageTransitions =
+    SurfaceSharedAxisPageTransitionsBuilder();
 
 PageTransitionsTheme buildPageTransitionsTheme({required bool predictiveBack}) {
   return PageTransitionsTheme(
     builders: <TargetPlatform, PageTransitionsBuilder>{
       TargetPlatform.android: predictiveBack
-          ? const PredictiveBackPageTransitionsBuilder()
-          : commonSharedXPageTransitions,
+          ? const DirectPreviousPredictiveBackPageTransitionsBuilder()
+          : commonSurfaceSharedXPageTransitions,
       TargetPlatform.windows: commonSharedXPageTransitions,
       TargetPlatform.linux: commonSharedXPageTransitions,
       TargetPlatform.macOS: commonSharedXPageTransitions,
     },
   );
+}
+
+class SurfaceSharedAxisPageTransitionsBuilder extends PageTransitionsBuilder {
+  const SurfaceSharedAxisPageTransitionsBuilder({
+    this.fillColor,
+    this.includeSurface = true,
+  });
+
+  final Color? fillColor;
+  final bool includeSurface;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final surface = fillColor ?? Theme.of(context).colorScheme.surface;
+    final transition = SharedAxisPageTransitionsBuilder(
+      transitionType: SharedAxisTransitionType.horizontal,
+      fillColor: surface,
+    ).buildTransitions(route, context, animation, secondaryAnimation, child);
+    if (!includeSurface) {
+      return transition;
+    }
+    return ColoredBox(
+      key: const ValueKey('common-route-transition-surface'),
+      color: surface,
+      child: transition,
+    );
+  }
+}
+
+class DirectPreviousPredictiveBackPageTransitionsBuilder
+    extends PredictiveBackPageTransitionsBuilder {
+  const DirectPreviousPredictiveBackPageTransitionsBuilder({
+    super.fallbackColor,
+  });
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return _DirectPreviousBackPreview(
+      route: route,
+      surface: fallbackColor ?? Theme.of(context).colorScheme.surface,
+      child: SurfaceSharedAxisPageTransitionsBuilder(
+        fillColor: fallbackColor,
+        includeSurface: false,
+      ).buildTransitions(route, context, animation, secondaryAnimation, child),
+    );
+  }
+}
+
+class _DirectPreviousBackPreview extends StatefulWidget {
+  final PageRoute<dynamic> route;
+  final Color surface;
+  final Widget child;
+
+  const _DirectPreviousBackPreview({
+    required this.route,
+    required this.surface,
+    required this.child,
+  });
+
+  @override
+  State<_DirectPreviousBackPreview> createState() =>
+      _DirectPreviousBackPreviewState();
+}
+
+class _DirectPreviousBackPreviewState extends State<_DirectPreviousBackPreview>
+    with WidgetsBindingObserver {
+  bool _acceptedGesture = false;
+  bool _previousRouteVisible = false;
+  bool _wasCurrent = false;
+  NavigatorState? _gestureNavigator;
+  int _gestureRevision = 0;
+
+  bool get _isEnabled {
+    return widget.route.isCurrent && widget.route.popGestureEnabled;
+  }
+
+  void _updateOverlayOpacity(bool previousRouteVisible) {
+    final entries = widget.route.overlayEntries;
+    if (entries.isNotEmpty) {
+      entries.first.opaque = previousRouteVisible ? false : widget.route.opaque;
+    }
+  }
+
+  void _scheduleGestureAbort(
+    bool wasAccepted,
+    NavigatorState? gestureNavigator,
+    int revision,
+  ) {
+    final route = widget.route;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (revision != _gestureRevision) {
+        return;
+      }
+      final entries = route.overlayEntries;
+      if (entries.isNotEmpty) {
+        entries.first.opaque = route.opaque;
+      }
+      if (!wasAccepted) {
+        return;
+      }
+      if (route.isActive) {
+        route.handleCancelBackGesture();
+      } else if (gestureNavigator?.userGestureInProgress == true) {
+        gestureNavigator!.didStopUserGesture();
+      }
+    });
+  }
+
+  void _setPreviousRouteVisible(bool value, {bool rebuild = true}) {
+    if (_previousRouteVisible == value) {
+      return;
+    }
+    _previousRouteVisible = value;
+    if (rebuild && mounted) {
+      setState(() {});
+    }
+    _updateOverlayOpacity(value);
+  }
+
+  void _abortGesture({bool rebuild = true, bool deferOverlayRestore = false}) {
+    final wasAccepted = _acceptedGesture;
+    final gestureNavigator = _gestureNavigator;
+    final revision = ++_gestureRevision;
+    _acceptedGesture = false;
+    _gestureNavigator = null;
+    if (deferOverlayRestore) {
+      _previousRouteVisible = false;
+      _scheduleGestureAbort(wasAccepted, gestureNavigator, revision);
+    } else {
+      _setPreviousRouteVisible(false, rebuild: rebuild);
+      if (wasAccepted) {
+        widget.route.handleCancelBackGesture();
+      }
+    }
+  }
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    final gestureInProgress = !backEvent.isButtonEvent && _isEnabled;
+    if (!gestureInProgress) {
+      return false;
+    }
+    _acceptedGesture = true;
+    _gestureRevision++;
+    _gestureNavigator = widget.route.navigator;
+    widget.route.handleStartBackGesture(progress: 0);
+    _setPreviousRouteVisible(true);
+    return true;
+  }
+
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
+    if (!_acceptedGesture) {
+      return;
+    }
+    widget.route.handleUpdateBackGestureProgress(progress: 0);
+    _setPreviousRouteVisible(true);
+  }
+
+  @override
+  void handleCancelBackGesture() {
+    if (!_acceptedGesture) {
+      return;
+    }
+    _acceptedGesture = false;
+    _gestureRevision++;
+    _gestureNavigator = null;
+    _setPreviousRouteVisible(false);
+    widget.route.handleCancelBackGesture();
+  }
+
+  @override
+  void handleCommitBackGesture() {
+    if (!_acceptedGesture) {
+      return;
+    }
+    if (!widget.route.isCurrent) {
+      _abortGesture();
+      return;
+    }
+    _acceptedGesture = false;
+    _gestureRevision++;
+    _gestureNavigator = null;
+    widget.route.handleCommitBackGesture();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _wasCurrent = widget.route.isCurrent;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isCurrent = ModalRoute.isCurrentOf(context) ?? widget.route.isCurrent;
+    if (_wasCurrent && !isCurrent && _acceptedGesture) {
+      _abortGesture(rebuild: false, deferOverlayRestore: true);
+    }
+    _wasCurrent = isCurrent;
+  }
+
+  @override
+  void dispose() {
+    if (_acceptedGesture) {
+      _abortGesture(rebuild: false, deferOverlayRestore: true);
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_previousRouteVisible) {
+      return Offstage(child: widget.child);
+    }
+    return ColoredBox(
+      key: const ValueKey('common-route-transition-surface'),
+      color: widget.surface,
+      child: widget.child,
+    );
+  }
 }
 
 class CommonDesktopRoute<T> extends PageRoute<T>

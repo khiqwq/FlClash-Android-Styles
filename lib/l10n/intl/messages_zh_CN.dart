@@ -411,7 +411,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "minimizeOnExit": MessageLookupByLibrary.simpleMessage("退出时最小化"),
     "minimizeOnExitDesc": MessageLookupByLibrary.simpleMessage("修改系统默认退出事件"),
     "minutesAgo": m17,
-    "miuixStyle": MessageLookupByLibrary.simpleMessage("Miuix 灵感"),
+    "miuixStyle": MessageLookupByLibrary.simpleMessage("Miuix"),
     "mixedPort": MessageLookupByLibrary.simpleMessage("混合端口"),
     "mode": MessageLookupByLibrary.simpleMessage("模式"),
     "monochromeScheme": MessageLookupByLibrary.simpleMessage("单色"),

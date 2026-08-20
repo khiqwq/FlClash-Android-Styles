@@ -614,7 +614,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Изменить стандартное событие выхода из системы",
     ),
     "minutesAgo": m17,
-    "miuixStyle": MessageLookupByLibrary.simpleMessage("В стиле Miuix"),
+    "miuixStyle": MessageLookupByLibrary.simpleMessage("Miuix"),
     "mixedPort": MessageLookupByLibrary.simpleMessage("Смешанный порт"),
     "mode": MessageLookupByLibrary.simpleMessage("Режим"),
     "monochromeScheme": MessageLookupByLibrary.simpleMessage("Монохром"),

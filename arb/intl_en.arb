@@ -32,7 +32,7 @@
   "themeDesc": "Customize the interface, theme mode, and colors",
   "interfaceStyle": "Interface style",
   "materialStyle": "Material",
-  "miuixStyle": "Miuix-inspired",
+  "miuixStyle": "Miuix",
   "blur": "Blur top and bottom bars",
   "blurDesc": "Blur the top and bottom bars with a translucent backdrop",
   "floatingBottomBar": "Floating bottom bar",
