@@ -278,6 +278,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
         primaryColors: defaultPrimaryColors,
         primaryColor: defaultPrimaryColor,
         schemeVariant: DynamicSchemeVariant.content,
+        enableMonetColors: true,
       );
     });
   }
@@ -363,25 +364,28 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
   @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
-    final vm4 = ref.watch(
+    final theme = ref.watch(
       themeSettingProvider.select(
-        (state) => VM4(
+        (state) => VM5(
           state.primaryColor,
           state.primaryColors,
           state.schemeVariant,
+          state.enableMonetColors,
           state.primaryColor == defaultPrimaryColor &&
               intListEquality.equals(
                 state.primaryColors,
                 defaultPrimaryColors,
               ) &&
-              state.schemeVariant == DynamicSchemeVariant.content,
+              state.schemeVariant == DynamicSchemeVariant.content &&
+              state.enableMonetColors,
         ),
       ),
     );
-    final primaryColor = vm4.a;
-    final primaryColors = [null, ...vm4.b];
-    final schemeVariant = vm4.c;
-    final isEquals = vm4.d;
+    final primaryColor = theme.a;
+    final primaryColors = [null, ...theme.b];
+    final schemeVariant = theme.c;
+    final enableMonetColors = theme.d;
+    final isEquals = theme.e;
 
     return SliverToBoxAdapter(
       child: CommonPopScope(
@@ -391,9 +395,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
             setState(() {
               _removablePrimaryColor = null;
             });
-            return false;
           }
-          return true;
         },
         child: ItemCard(
           info: Info(
@@ -432,87 +434,122 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
           ], space: 8),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: LayoutBuilder(
-              builder: (_, constraints) {
-                final columns = _calcColumns(constraints.maxWidth);
-                final itemWidth =
-                    (constraints.maxWidth - (columns - 1) * 16) / columns;
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: [
-                    for (final color in primaryColors)
-                      Container(
-                        clipBehavior: Clip.none,
-                        width: itemWidth,
-                        height: itemWidth,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          clipBehavior: Clip.none,
-                          children: [
-                            EffectGestureDetector(
-                              child: ColorSchemeBox(
-                                isSelected: color == primaryColor,
-                                primaryColor: color != null
-                                    ? Color(color)
-                                    : null,
-                                onPressed: () {
-                                  setState(() {
-                                    _removablePrimaryColor = null;
-                                  });
-                                  ref
-                                      .read(themeSettingProvider.notifier)
-                                      .update(
-                                        (state) =>
-                                            state.copyWith(primaryColor: color),
-                                      );
-                                },
-                              ),
-                              onLongPress: () {
-                                setState(() {
-                                  _removablePrimaryColor = color;
-                                });
-                              },
-                            ),
-                            if (_removablePrimaryColor != null &&
-                                _removablePrimaryColor == color)
-                              Container(
-                                color: Colors.white.opacity0,
-                                padding: const EdgeInsets.all(8),
-                                child: IconButton.filledTonal(
-                                  onPressed: _handleDel,
-                                  padding: const EdgeInsets.all(12),
-                                  iconSize: 30,
-                                  icon: Icon(
-                                    color: context.colorScheme.primary,
-                                    Icons.delete,
+            child: Column(
+              children: [
+                if (system.isAndroid) ...[
+                  MonetColorsSetting(value: enableMonetColors),
+                  const SizedBox(height: 16),
+                ],
+                LayoutBuilder(
+                  builder: (_, constraints) {
+                    final columns = _calcColumns(constraints.maxWidth);
+                    final itemWidth =
+                        (constraints.maxWidth - (columns - 1) * 16) / columns;
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        for (final color in primaryColors)
+                          Container(
+                            clipBehavior: Clip.none,
+                            width: itemWidth,
+                            height: itemWidth,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              clipBehavior: Clip.none,
+                              children: [
+                                EffectGestureDetector(
+                                  child: ColorSchemeBox(
+                                    isSelected: color == primaryColor,
+                                    primaryColor: color != null
+                                        ? Color(color)
+                                        : null,
+                                    onPressed: () {
+                                      setState(() {
+                                        _removablePrimaryColor = null;
+                                      });
+                                      ref
+                                          .read(themeSettingProvider.notifier)
+                                          .update(
+                                            (state) => state.copyWith(
+                                              primaryColor: color,
+                                            ),
+                                          );
+                                    },
                                   ),
+                                  onLongPress: () {
+                                    setState(() {
+                                      _removablePrimaryColor = color;
+                                    });
+                                  },
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    if (_removablePrimaryColor == null)
-                      Container(
-                        width: itemWidth,
-                        height: itemWidth,
-                        padding: const EdgeInsets.all(4),
-                        child: IconButton.filledTonal(
-                          onPressed: _handleAdd,
-                          iconSize: 32,
-                          icon: Icon(
-                            color: context.colorScheme.primary,
-                            Icons.add,
+                                if (_removablePrimaryColor != null &&
+                                    _removablePrimaryColor == color)
+                                  Container(
+                                    color: Colors.white.opacity0,
+                                    padding: const EdgeInsets.all(8),
+                                    child: IconButton.filledTonal(
+                                      onPressed: _handleDel,
+                                      padding: const EdgeInsets.all(12),
+                                      iconSize: 30,
+                                      icon: Icon(
+                                        color: context.colorScheme.primary,
+                                        Icons.delete,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                  ],
-                );
-              },
+                        if (_removablePrimaryColor == null)
+                          Container(
+                            width: itemWidth,
+                            height: itemWidth,
+                            padding: const EdgeInsets.all(4),
+                            child: IconButton.filledTonal(
+                              onPressed: _handleAdd,
+                              iconSize: 32,
+                              icon: Icon(
+                                color: context.colorScheme.primary,
+                                Icons.add,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class MonetColorsSetting extends ConsumerWidget {
+  final bool? value;
+
+  const MonetColorsSetting({super.key, this.value});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool enableMonetColors =
+        value ??
+        ref.watch(
+          themeSettingProvider.select((state) => state.enableMonetColors),
+        );
+    return ListItem.toggle(
+      key: const ValueKey('monet-colors-toggle'),
+      leading: const Icon(Icons.color_lens_outlined),
+      title: Text(context.appLocalizations.enableMonetColors),
+      value: enableMonetColors,
+      onChanged: (value) {
+        ref
+            .read(themeSettingProvider.notifier)
+            .update((state) => state.copyWith(enableMonetColors: value));
+      },
     );
   }
 }

@@ -337,9 +337,9 @@ class _AddOrEditRuleNestedSheetState
         ? context.colorScheme.surfaceContainerLow
         : context.colorScheme.surface;
     return CommonPopScope(
-      onPop: (_) async {
+      canPop: false,
+      onPop: (_) {
         _handlePop();
-        return false;
       },
       child: sheetProvider!.copyWith(
         nestedNavigatorPop: ([_]) {

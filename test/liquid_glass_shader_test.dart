@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:fl_clash/widgets/effect.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -13,11 +15,52 @@ void main() {
     expect(pubspec, contains('THIRD_PARTY_NOTICES.md'));
     expect(shader, contains('rounded_rect_distance'));
     expect(shader, contains('u_chromatic_aberration'));
+    expect(shader, contains('u_shape_origin'));
+    expect(shader, contains('u_corner_radii'));
+    expect(shader, contains('u_depth_effect'));
+    expect(shader, contains('FlutterFragCoord().xy'));
+    expect(shader, isNot(contains('IMPELLER_TARGET_OPENGLES')));
+    expect(shader, contains('-circle_map * max(u_refraction_amount, 0.0)'));
     expect(effect, contains('ImageFilter.isShaderFilterSupported'));
     expect(effect, contains('ImageFilter.shader'));
-    expect(effect, contains('setFloat(0, widget.liquidSize!.width)'));
-    expect(effect, contains('setFloat(1, widget.liquidSize!.height)'));
-    expect(effect, contains('-(widget.liquidRefractionAmount'));
-    expect(shader, contains('sign(u_refraction_amount)'));
+    expect(effect, contains('LiquidGlassUniforms'));
+    expect(effect, isNot(contains('setImageSampler')));
+  });
+
+  test('liquid glass uniform ABI includes padded rounded-rect geometry', () {
+    const uniforms = LiquidGlassUniforms(
+      inputSize: Size(180, 120),
+      shapeOrigin: Offset(40, 40),
+      shapeSize: Size(100, 40),
+      cornerRadii: BorderRadius.only(
+        topLeft: Radius.circular(20),
+        topRight: Radius.circular(18),
+        bottomRight: Radius.circular(16),
+        bottomLeft: Radius.circular(14),
+      ),
+      refractionHeight: 10,
+      refractionAmount: 14,
+      chromaticAberration: 0.5,
+      depthEffect: 0.25,
+    );
+
+    expect(LiquidGlassUniforms.floatCount, 14);
+    expect(uniforms.values, [
+      180,
+      120,
+      40,
+      40,
+      100,
+      40,
+      20,
+      18,
+      16,
+      14,
+      10,
+      14,
+      0.5,
+      0.25,
+    ]);
+    expect(uniforms.refractionAmount, greaterThan(0));
   });
 }

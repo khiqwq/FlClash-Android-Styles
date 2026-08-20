@@ -73,6 +73,31 @@ void main() {
     });
 
     test(
+      'persists the default Monet setting for current legacy data',
+      () async {
+        final configMap = _createConfigMap();
+        final themeProps = configMap['themeProps']! as Map<String, Object?>
+          ..remove('enableMonetColors');
+        final store = _FakeMigrationStore(
+          configMap: configMap,
+          version: Migration.currentVersion,
+        );
+
+        final config = await Migration(store: store).run();
+
+        expect(config.themeProps.enableMonetColors, true);
+        expect(store.savedConfig, config);
+        expect(store.events, ['getConfigMap', 'getVersion', 'saveConfig']);
+        final savedConfigMap =
+            jsonDecode(jsonEncode(store.savedConfig)) as Map<String, Object?>;
+        final savedThemeProps =
+            savedConfigMap['themeProps']! as Map<String, Object?>;
+        expect(savedThemeProps['enableMonetColors'], true);
+        expect(themeProps.containsKey('enableMonetColors'), false);
+      },
+    );
+
+    test(
       'commits v0 cleanup and version only after migrated data is saved',
       () async {
         final configMap = <String, Object?>{

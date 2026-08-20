@@ -301,6 +301,7 @@ void main() {
       expect(props.primaryColor, null);
       expect(props.primaryColors, defaultPrimaryColors);
       expect(props.themeMode, ThemeMode.dark);
+      expect(props.enableMonetColors, true);
       expect(props.pureBlack, false);
       expect(props.textScale.scale, 1.0);
       expect(props.interfaceStyle, InterfaceStyle.material);
@@ -315,12 +316,14 @@ void main() {
     test('safeFromJson returns default on null', () {
       final result = ThemeProps.safeFromJson(null);
       expect(result.themeMode, ThemeMode.dark);
+      expect(result.enableMonetColors, true);
     });
 
     test('legacy JSON receives Android appearance defaults', () {
       final result = ThemeProps.fromJson({});
 
       expect(result.interfaceStyle, InterfaceStyle.material);
+      expect(result.enableMonetColors, true);
       expect(result.blur, false);
       expect(result.floatingBottomBar, false);
       expect(result.liquidGlass, false);
@@ -371,6 +374,7 @@ void main() {
       const props = ThemeProps(
         primaryColor: 0xFF123456,
         themeMode: ThemeMode.light,
+        enableMonetColors: false,
         pureBlack: true,
         textScale: TextScale(enable: true, scale: 1.5),
         interfaceStyle: InterfaceStyle.miuix,
@@ -382,6 +386,7 @@ void main() {
       final restored = roundTrip(() => props.toJson(), ThemeProps.fromJson);
       expect(restored.primaryColor, 0xFF123456);
       expect(restored.themeMode, ThemeMode.light);
+      expect(restored.enableMonetColors, false);
       expect(restored.pureBlack, true);
       expect(restored.textScale.scale, 1.5);
       expect(restored.interfaceStyle, InterfaceStyle.miuix);
@@ -390,6 +395,7 @@ void main() {
       expect(restored.liquidGlass, true);
       expect(restored.predictiveBack, false);
       expect(props.toJson()['interfaceStyle'], 'miuix');
+      expect(props.toJson()['enableMonetColors'], false);
       expect(props.toJson()['blur'], true);
       expect(props.toJson()['floatingBottomBar'], true);
       expect(props.toJson()['liquidGlass'], true);

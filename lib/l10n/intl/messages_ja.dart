@@ -282,6 +282,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "editSsid": MessageLookupByLibrary.simpleMessage("SSIDを編集"),
     "emptyTip": m4,
     "en": MessageLookupByLibrary.simpleMessage("英語"),
+    "enableMonetColors": MessageLookupByLibrary.simpleMessage(
+      "Monet カラーを有効にする",
+    ),
     "entries": MessageLookupByLibrary.simpleMessage(" エントリ"),
     "entriesCount": m5,
     "exclude": MessageLookupByLibrary.simpleMessage("最近のタスクから非表示"),

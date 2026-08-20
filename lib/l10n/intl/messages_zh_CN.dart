@@ -254,6 +254,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "editSsid": MessageLookupByLibrary.simpleMessage("编辑SSID"),
     "emptyTip": m4,
     "en": MessageLookupByLibrary.simpleMessage("英语"),
+    "enableMonetColors": MessageLookupByLibrary.simpleMessage("启用 Monet 颜色"),
     "entries": MessageLookupByLibrary.simpleMessage("个条目"),
     "entriesCount": m5,
     "exclude": MessageLookupByLibrary.simpleMessage("从最近任务中隐藏"),

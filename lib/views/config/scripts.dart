@@ -193,10 +193,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
       onPop: (_) {
         if (selectedScriptId != null) {
           ref.read(itemProvider(_key).notifier).value = null;
-          return false;
         }
-        Navigator.of(context).pop();
-        return false;
       },
       child: CommonScaffold(
         actions: [

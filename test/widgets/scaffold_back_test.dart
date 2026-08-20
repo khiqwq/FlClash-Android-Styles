@@ -30,7 +30,6 @@ void main() {
                       canPop: true,
                       onPop: (_) {
                         onPopCount++;
-                        return true;
                       },
                       child: const Scaffold(body: Text('destination')),
                     ),
@@ -69,7 +68,6 @@ void main() {
           canPop: false,
           onPop: (_) {
             onPopCount++;
-            return false;
           },
           child: const Scaffold(body: Text('special state')),
         ),
@@ -97,9 +95,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: CommonPopScope(
+          canPop: false,
           onPop: (_) {
             rootBackCount++;
-            return false;
           },
           child: StatefulBuilder(
             builder: (context, setState) {
@@ -147,6 +145,36 @@ void main() {
     expect((innerBackCount, outerBackCount, rootBackCount), (1, 1, 1));
   });
 
+  testWidgets('active back layers are ready before the first back event', (
+    tester,
+  ) async {
+    var localBackCount = 0;
+    var rootBackCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CommonPopScope(
+          canPop: false,
+          onPop: (_) {
+            rootBackCount++;
+          },
+          child: BackLayerScope(
+            onBack: () {
+              localBackCount++;
+            },
+            child: const SizedBox(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(localBackCount, 1);
+    expect(rootBackCount, 0);
+  });
+
   testWidgets(
     'a pending inactive sync is cancelled when the page reactivates',
     (tester) async {
@@ -159,9 +187,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: CommonPopScope(
+            canPop: false,
             onPop: (_) {
               rootBackCount++;
-              return false;
             },
             child: _PageActivityTestScope(
               isActive: isActive,
@@ -260,9 +288,9 @@ void main() {
           ],
           supportedLocales: AppLocalizations.delegate.supportedLocales,
           home: CommonPopScope(
+            canPop: false,
             onPop: (_) {
               rootBackCount++;
-              return false;
             },
             child: CommonScaffold(
               title: 'Logs',

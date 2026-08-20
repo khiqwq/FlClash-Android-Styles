@@ -362,6 +362,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "editSsid": MessageLookupByLibrary.simpleMessage("Edit SSID"),
     "emptyTip": m4,
     "en": MessageLookupByLibrary.simpleMessage("English"),
+    "enableMonetColors": MessageLookupByLibrary.simpleMessage(
+      "Enable Monet colors",
+    ),
     "entries": MessageLookupByLibrary.simpleMessage(" entries"),
     "entriesCount": m5,
     "exclude": MessageLookupByLibrary.simpleMessage("Hidden from recent tasks"),

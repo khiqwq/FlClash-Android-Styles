@@ -1,11 +1,16 @@
 import 'package:animations/animations.dart';
+import 'package:fl_clash/common/system.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
 
 class BaseNavigator {
   static Future<T?> push<T>(BuildContext context, Widget child) async {
-    if (!globalState.container.read(isMobileViewProvider)) {
+    final useDesktopRoute = shouldUseCommonDesktopRoute(
+      isDesktop: system.isDesktop,
+      isMobileView: globalState.container.read(isMobileViewProvider),
+    );
+    if (useDesktopRoute) {
       return Navigator.of(
         context,
       ).push<T>(CommonDesktopRoute(builder: (context) => child));
@@ -13,6 +18,37 @@ class BaseNavigator {
     return Navigator.of(
       context,
     ).push<T>(CommonRoute(builder: (context) => child));
+  }
+}
+
+@visibleForTesting
+bool shouldUseCommonDesktopRoute({
+  required bool isDesktop,
+  required bool isMobileView,
+}) {
+  return isDesktop && !isMobileView;
+}
+
+abstract interface class CommonRouteResultHost {
+  void updateCurrentResult(Object? result);
+}
+
+mixin CommonRouteResultMixin<T> on Route<T> implements CommonRouteResultHost {
+  T? _currentResult;
+
+  @override
+  T? get currentResult => _currentResult;
+
+  @override
+  void updateCurrentResult(Object? result) {
+    switch (result) {
+      case null:
+        _currentResult = null;
+      case final T typedResult:
+        _currentResult = typedResult;
+      default:
+        throw ArgumentError.value(result, 'result');
+    }
   }
 }
 
@@ -34,7 +70,8 @@ PageTransitionsTheme buildPageTransitionsTheme({required bool predictiveBack}) {
   );
 }
 
-class CommonDesktopRoute<T> extends PageRoute<T> {
+class CommonDesktopRoute<T> extends PageRoute<T>
+    with CommonRouteResultMixin<T> {
   final Widget Function(BuildContext context) builder;
 
   CommonDesktopRoute({required this.builder});
@@ -69,7 +106,8 @@ class CommonDesktopRoute<T> extends PageRoute<T> {
   Duration get reverseTransitionDuration => const Duration(milliseconds: 200);
 }
 
-class CommonRoute<T> extends MaterialPageRoute<T> {
+class CommonRoute<T> extends MaterialPageRoute<T>
+    with CommonRouteResultMixin<T> {
   CommonRoute({required super.builder});
 }
 

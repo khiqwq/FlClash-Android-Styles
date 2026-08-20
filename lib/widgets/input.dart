@@ -369,14 +369,19 @@ class _ListInputPageState extends ConsumerState<ListInputPage> {
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     final selectedItems = ref.watch(itemsProvider(_key));
+    final CommonRouteResultHost? resultHost = switch (ModalRoute.of(context)) {
+      final CommonRouteResultHost host => host,
+      _ => null,
+    };
+    resultHost?.updateCurrentResult(List<String>.unmodifiable(_items));
     return CommonPopScope(
+      canPop: selectedItems.isEmpty && resultHost != null,
       onPop: (_) {
         if (selectedItems.isNotEmpty) {
           ref.read(itemsProvider(_key).notifier).value = {};
-          return false;
+          return;
         }
         Navigator.of(context).pop(_items);
-        return false;
       },
       child: CommonScaffold(
         title: widget.title,
@@ -621,14 +626,19 @@ class _MapInputPageState extends ConsumerState<MapInputPage> {
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     final selectedItems = ref.watch(itemsProvider(_key));
+    final CommonRouteResultHost? resultHost = switch (ModalRoute.of(context)) {
+      final CommonRouteResultHost host => host,
+      _ => null,
+    };
+    resultHost?.updateCurrentResult(Map<String, String>.fromEntries(_items));
     return CommonPopScope(
+      canPop: selectedItems.isEmpty && resultHost != null,
       onPop: (_) {
         if (selectedItems.isNotEmpty) {
           ref.read(itemsProvider(_key).notifier).value = {};
-          return false;
+          return;
         }
         Navigator.of(context).pop(Map<String, String>.fromEntries(_items));
-        return false;
       },
       child: CommonScaffold(
         title: widget.title,

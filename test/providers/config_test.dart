@@ -85,6 +85,7 @@ void main() {
     test('default value is dark mode', () {
       final value = container.read(themeSettingProvider);
       expect(value.primaryColor, null);
+      expect(value.enableMonetColors, true);
       expect(value.interfaceStyle, InterfaceStyle.material);
       expect(value.blur, false);
       expect(value.floatingBottomBar, false);
@@ -95,8 +96,18 @@ void main() {
     test('can update state', () {
       container
           .read(themeSettingProvider.notifier)
-          .update((_) => const ThemeProps(primaryColor: 0xFF123456));
+          .update(
+            (_) => const ThemeProps(
+              primaryColor: 0xFF123456,
+              enableMonetColors: false,
+            ),
+          );
       expect(container.read(themeSettingProvider).primaryColor, 0xFF123456);
+      expect(container.read(themeSettingProvider).enableMonetColors, false);
+      expect(
+        container.read(configProvider).themeProps.enableMonetColors,
+        false,
+      );
     });
   });
 

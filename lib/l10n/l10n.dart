@@ -694,6 +694,16 @@ class AppLocalizations {
     return Intl.message('Theme color', name: 'themeColor', desc: '', args: []);
   }
 
+  /// `Enable Monet colors`
+  String get enableMonetColors {
+    return Intl.message(
+      'Enable Monet colors',
+      name: 'enableMonetColors',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Preview`
   String get preview {
     return Intl.message('Preview', name: 'preview', desc: '', args: []);

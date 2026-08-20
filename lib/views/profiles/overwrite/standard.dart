@@ -90,10 +90,7 @@ class _StandardContentState extends ConsumerState<StandardContent> {
       onPop: (_) {
         if (selectedRules.isNotEmpty) {
           ref.read(itemsProvider(_key).notifier).value = {};
-          return false;
         }
-        Navigator.of(context).pop();
-        return false;
       },
       child: SliverMainAxisGroup(
         slivers: [

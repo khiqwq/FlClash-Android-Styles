@@ -95,7 +95,10 @@ class Migration {
         final needsInterfaceStyleMigration = _needsInterfaceStyleMigration(
           configMap,
         );
-        if ((hasPlainTextDavPassword || needsInterfaceStyleMigration) &&
+        final needsMonetColorsMigration = _needsMonetColorsMigration(configMap);
+        if ((hasPlainTextDavPassword ||
+                needsInterfaceStyleMigration ||
+                needsMonetColorsMigration) &&
             !await _store.saveConfig(config)) {
           throw StateError('Failed to save upgraded preferences');
         }
@@ -157,6 +160,14 @@ bool _needsInterfaceStyleMigration(Map<String, Object?>? configMap) {
   }
   final version = themeProps['interfaceStyleVersion'];
   return version is! num || version.toInt() < 2;
+}
+
+bool _needsMonetColorsMigration(Map<String, Object?>? configMap) {
+  final themeProps = configMap?['themeProps'];
+  if (themeProps is! Map) {
+    return false;
+  }
+  return themeProps['enableMonetColors'] is! bool;
 }
 
 final migration = Migration(store: const _AppMigrationStore());

@@ -19,7 +19,7 @@ abstract final class AndroidAppearanceTokens {
   static const double miuixListVerticalPadding = 12;
   static const double miuixListHorizontalPadding = 20;
   static const double blurredBarTintOpacity = 0.72;
-  static const double liquidGlassTintOpacity = 0.52;
+  static const double liquidGlassTintOpacity = 0.34;
   static const double liquidGlassHighlightOpacity = 0.24;
   static const double liquidGlassAccentOpacity = 0.08;
   static const double liquidGlassBorderOpacity = 0.28;
