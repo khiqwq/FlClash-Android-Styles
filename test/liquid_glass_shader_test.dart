@@ -25,9 +25,42 @@ void main() {
     expect(shader, contains('u_corner_radii'));
     expect(shader, contains('u_depth_effect'));
     expect(shader, contains('FlutterFragCoord().xy'));
-    expect(shader, isNot(contains('IMPELLER_TARGET_OPENGLES')));
+    expect('#ifdef IMPELLER_TARGET_OPENGLES'.allMatches(shader).length, 1);
+    expect(shader, contains('coordinate.y = u_input_size.y - coordinate.y;'));
+    expect(
+      'coordinate.y = u_input_size.y - coordinate.y;'.allMatches(shader).length,
+      1,
+    );
+    expect(
+      shader.indexOf('coordinate.y = u_input_size.y - coordinate.y;'),
+      lessThan(shader.indexOf('vec2 half_size = u_shape_size * 0.5;')),
+    );
+    expect(
+      shader.indexOf('coordinate.y = u_input_size.y - coordinate.y;'),
+      lessThan(shader.indexOf('texture(u_texture')),
+    );
     expect(highlightShader, contains('u_falloff'));
     expect(highlightShader, contains('positive * intensity * u_alpha'));
+    expect(
+      '#ifdef IMPELLER_TARGET_OPENGLES'.allMatches(highlightShader).length,
+      1,
+    );
+    expect(
+      highlightShader,
+      contains('coordinate.y = u_size.y - coordinate.y;'),
+    );
+    expect(
+      'coordinate.y = u_size.y - coordinate.y;'
+          .allMatches(highlightShader)
+          .length,
+      1,
+    );
+    expect(
+      highlightShader.indexOf('coordinate.y = u_size.y - coordinate.y;'),
+      lessThan(
+        highlightShader.indexOf('vec2 centered = coordinate - half_size;'),
+      ),
+    );
     expect(effect, contains('ImageFilter.isShaderFilterSupported'));
     expect(effect, contains('ImageFilter.shader'));
     expect(effect, contains('LiquidGlassUniforms'));
