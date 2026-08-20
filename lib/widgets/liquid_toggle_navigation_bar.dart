@@ -127,6 +127,10 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   void didUpdateWidget(covariant LiquidToggleNavigationBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     final selectedIndex = _clampIndex(widget.selectedIndex);
+    if (!_canPreserveSelectionState(oldWidget)) {
+      _reconcileSelection(selectedIndex);
+      return;
+    }
     if (_activePointer != null) {
       if (_awaitingExternalIndex != null) {
         if (selectedIndex == _awaitingExternalIndex) {
@@ -178,6 +182,42 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
   }
 
   double get _valueRange => max(widget.items.length - 1, 1).toDouble();
+
+  bool _canPreserveSelectionState(LiquidToggleNavigationBar oldWidget) {
+    if (oldWidget.items.length != widget.items.length) {
+      return false;
+    }
+    final itemCount = widget.items.length;
+    bool isValidIndex(int? index) {
+      if (index == null) {
+        return true;
+      }
+      if (itemCount == 0) {
+        return index == 0;
+      }
+      return index >= 0 && index < itemCount;
+    }
+
+    if (!isValidIndex(_committedIndex) ||
+        !isValidIndex(_awaitingExternalIndex) ||
+        !isValidIndex(_deferredExternalIndex) ||
+        !isValidIndex(_directTapIndex)) {
+      return false;
+    }
+    return (_activePointer == null) == (_directTapIndex == null);
+  }
+
+  void _reconcileSelection(int selectedIndex) {
+    _releaseEpoch++;
+    _clearPointerInteraction();
+    _stopVelocityTracking();
+    _releasePress();
+    _committedIndex = selectedIndex;
+    _awaitingExternalIndex = null;
+    _deferredExternalIndex = null;
+    _fraction = selectedIndex.toDouble();
+    _animateToValue(_fraction);
+  }
 
   int _clampIndex(int index) {
     if (widget.items.isEmpty) {
@@ -551,6 +591,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
           return AnimatedBuilder(
             animation: _animation,
             builder: (context, _) {
+              final committedIndex = _clampIndex(_committedIndex);
               final maxPosition = max(widget.items.length - 1, 0).toDouble();
               final position = _positionController.value.clamp(
                 0.0,
@@ -757,7 +798,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                                       'liquid-navigation-item-$index',
                                     ),
                                     item: widget.items[index],
-                                    selected: index == _committedIndex,
+                                    selected: index == committedIndex,
                                   ),
                                 ),
                             ],
@@ -784,7 +825,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                                     'liquid-navigation-semantics-$index',
                                   ),
                                   container: true,
-                                  selected: index == _committedIndex,
+                                  selected: index == committedIndex,
                                   button: true,
                                   label: intl.Intl.message(
                                     widget.items[index].label.name,

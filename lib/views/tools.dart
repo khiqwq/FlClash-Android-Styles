@@ -194,7 +194,14 @@ class InterfaceStyleSelector extends ConsumerWidget {
         }
         ref
             .read(themeSettingProvider.notifier)
-            .update((state) => state.copyWith(interfaceStyle: value));
+            .update(
+              (state) => state.copyWith(
+                interfaceStyle: value,
+                enableMonetColors: value == InterfaceStyle.material
+                    ? true
+                    : state.enableMonetColors,
+              ),
+            );
       },
     );
   }

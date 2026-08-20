@@ -776,6 +776,70 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('Android root back stays system-owned when minimizing', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    globalState.container = container;
+    var closes = 0;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: HomeBackScopeContainer(
+            isAndroid: true,
+            onRootClose: () async {
+              closes++;
+            },
+            child: const Scaffold(body: Text('home')),
+          ),
+        ),
+      ),
+    );
+
+    expect(container.read(appSettingProvider).minimizeOnExit, true);
+    expect(find.byType(CommonPopScope), findsNothing);
+    expect(closes, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    container.dispose();
+  });
+
+  testWidgets('Android root back coordinates cleanup when not minimizing', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    globalState.container = container;
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(minimizeOnExit: false));
+    var closes = 0;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: HomeBackScopeContainer(
+            isAndroid: true,
+            onRootClose: () async {
+              closes++;
+            },
+            child: const Scaffold(body: Text('home')),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(CommonPopScope), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(closes, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    container.dispose();
+    await tester.pump();
+  });
 }
 
 class _TestApp extends StatelessWidget {

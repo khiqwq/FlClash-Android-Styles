@@ -154,6 +154,107 @@ void main() {
     expect(theme.textTheme.titleMedium?.fontWeight, FontWeight.w500);
   });
 
+  testWidgets('Miuix tonal buttons resolve readable fixed roles', (
+    tester,
+  ) async {
+    final colorScheme = miuixDefaultColorScheme(Brightness.light);
+    const appearance = AppearanceTheme(
+      isAndroid: true,
+      interfaceStyle: InterfaceStyle.miuix,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: applyAppearanceComponentTheme(
+          ThemeData(colorScheme: colorScheme, extensions: const [appearance]),
+          appearance,
+        ),
+        home: Scaffold(
+          body: Column(
+            children: [
+              FilledButton.tonal(
+                key: const ValueKey('tonal-button'),
+                onPressed: () {},
+                child: const Text('Tonal'),
+              ),
+              FilledButton(
+                key: const ValueKey('primary-button'),
+                onPressed: () {},
+                child: const Text('Primary'),
+              ),
+              const FilledButton.tonal(
+                key: ValueKey('disabled-tonal-button'),
+                onPressed: null,
+                child: Text('Disabled'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    Color? resolveColor(
+      Finder finder,
+      Set<WidgetState> states,
+      WidgetStateProperty<Color?>? Function(ButtonStyle style) property,
+    ) {
+      final button = tester.widget<FilledButton>(finder);
+      final context = tester.element(finder);
+      return property(button.style ?? const ButtonStyle())?.resolve(states) ??
+          property(
+            FilledButtonTheme.of(context).style ?? const ButtonStyle(),
+          )?.resolve(states) ??
+          property(button.defaultStyleOf(context))?.resolve(states);
+    }
+
+    final tonal = find.byKey(const ValueKey('tonal-button'));
+    expect(
+      resolveColor(
+        tonal,
+        const <WidgetState>{},
+        (style) => style.backgroundColor,
+      ),
+      colorScheme.secondaryFixedDim,
+    );
+    expect(
+      resolveColor(
+        tonal,
+        const <WidgetState>{},
+        (style) => style.foregroundColor,
+      ),
+      colorScheme.onSecondaryFixed,
+    );
+    final primary = find.byKey(const ValueKey('primary-button'));
+    expect(
+      resolveColor(
+        primary,
+        const <WidgetState>{},
+        (style) => style.backgroundColor,
+      ),
+      colorScheme.primary,
+    );
+    expect(
+      resolveColor(
+        primary,
+        const <WidgetState>{},
+        (style) => style.foregroundColor,
+      ),
+      colorScheme.onPrimary,
+    );
+    final disabled = find.byKey(const ValueKey('disabled-tonal-button'));
+    expect(
+      resolveColor(disabled, const <WidgetState>{
+        WidgetState.disabled,
+      }, (style) => style.backgroundColor),
+      const Color(0xFFE3E3E3),
+    );
+    expect(
+      resolveColor(disabled, const <WidgetState>{
+        WidgetState.disabled,
+      }, (style) => style.foregroundColor),
+      const Color(0xFF6B6B6B),
+    );
+  });
+
   testWidgets('selected Miuix cards use primary-container foreground roles', (
     tester,
   ) async {

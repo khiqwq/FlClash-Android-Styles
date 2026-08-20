@@ -256,9 +256,7 @@ class _MiuixCoreStatusCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isStart = ref.watch(isStartProvider);
-    final coreStatus = ref.watch(coreStatusProvider);
-    final status = isStart ? coreStatus : CoreStatus.disconnected;
+    final status = ref.watch(coreStatusProvider);
     final accent = switch (status) {
       CoreStatus.connected => const Color(0xFF36C96B),
       CoreStatus.connecting => context.colorScheme.primary,
@@ -328,7 +326,7 @@ class _MiuixCoreStatusCard extends ConsumerWidget {
                         ),
                       ),
                       const Spacer(),
-                      if (isStart)
+                      if (status == CoreStatus.connected)
                         Text(
                           utils.getTimeText(ref.watch(runTimeProvider)),
                           style: context.textTheme.titleMedium?.copyWith(

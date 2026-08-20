@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: core/go.sum
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           channel: stable
           flutter-version: '3.44.4'
@@ -42,7 +42,7 @@ jobs:
 
       - name: Setup Android NDK
         id: ndk
-        uses: nttld/setup-ndk@v1
+        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779
         with:
           ndk-version: r28c
           add-to-path: true

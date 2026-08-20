@@ -101,46 +101,55 @@ class _MiuixNavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = miuixOnSurfaceContainer(Theme.brightnessOf(context));
-    final effectiveColor = color.withValues(
-      alpha: selected ? color.a : color.a * 0.4,
-    );
+    final effectiveColor = selected
+        ? miuixOnSurfaceContainer(Theme.brightnessOf(context))
+        : context.colorScheme.onSurfaceVariant;
     final label = Intl.message(item.label.name);
     return Semantics(
       selected: selected,
       button: true,
       label: label,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onPressed,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedScale(
-              scale: 1,
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutBack,
-              child: IconTheme.merge(
-                data: IconThemeData(size: 26, color: effectiveColor),
-                child: item.icon,
-              ),
+      child: SizedBox.expand(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onPressed,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedScale(
+                  scale: 1,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutBack,
+                  child: IconTheme.merge(
+                    data: IconThemeData(size: 26, color: effectiveColor),
+                    child: item.icon,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  style:
+                      context.textTheme.labelSmall?.copyWith(
+                        color: effectiveColor,
+                        fontSize: 12,
+                        height: 1.15,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w400,
+                      ) ??
+                      TextStyle(color: effectiveColor, fontSize: 12),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              style:
-                  context.textTheme.labelSmall?.copyWith(
-                    color: effectiveColor,
-                    fontSize: 12,
-                    height: 1.15,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                  ) ??
-                  TextStyle(color: effectiveColor, fontSize: 12),
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -583,16 +592,23 @@ class HomeBackScopeContainer extends ConsumerWidget {
   final Widget child;
   @visibleForTesting
   final bool? isAndroid;
+  @visibleForTesting
+  final Future<void> Function()? onRootClose;
 
   const HomeBackScopeContainer({
     super.key,
     required this.child,
     @visibleForTesting this.isAndroid,
+    @visibleForTesting this.onRootClose,
   });
 
   @override
   Widget build(BuildContext context, ref) {
-    if (isAndroid ?? system.isAndroid) {
+    final isAndroid = this.isAndroid ?? system.isAndroid;
+    final minimizeOnExit = ref.watch(
+      appSettingProvider.select((state) => state.minimizeOnExit),
+    );
+    if (isAndroid && minimizeOnExit) {
       return child;
     }
     return CommonPopScope(
@@ -605,9 +621,14 @@ class HomeBackScopeContainer extends ConsumerWidget {
         if (canPop) {
           Navigator.of(realContext).pop();
         } else {
-          await globalState.container
-              .read(systemActionProvider.notifier)
-              .handleClose();
+          final close = onRootClose;
+          if (close != null) {
+            await close();
+          } else {
+            await globalState.container
+                .read(systemActionProvider.notifier)
+                .handleClose();
+          }
         }
       },
       child: child,

@@ -940,6 +940,79 @@ void main() {
     }
   });
 
+  testWidgets('local history added during gesture aborts and restores route', (
+    tester,
+  ) async {
+    try {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      late VoidCallback addLocalHistory;
+      var layerRemoved = 0;
+      final navigatorKey = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: navigatorKey,
+          builder: _predictiveBackBuilder,
+          theme: ThemeData(
+            pageTransitionsTheme: buildPageTransitionsTheme(
+              predictiveBack: true,
+            ),
+          ),
+          home: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    CommonRoute<void>(
+                      builder: (context) {
+                        addLocalHistory = () {
+                          ModalRoute.of(context)!.addLocalHistoryEntry(
+                            LocalHistoryEntry(
+                              onRemove: () {
+                                layerRemoved++;
+                              },
+                            ),
+                          );
+                        };
+                        return const Scaffold(body: Text('destination'));
+                      },
+                    ),
+                  );
+                },
+                child: const Text('source'),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.tap(find.text('source'));
+      await tester.pumpAndSettle();
+
+      expect(
+        await _sendBackGesture(tester, 'startBackGesture', progress: 0),
+        true,
+      );
+      addLocalHistory();
+      await tester.pump();
+      await _sendBackGesture(tester, 'commitBackGesture');
+      await tester.pumpAndSettle();
+
+      expect(find.text('destination'), findsOneWidget);
+      expect(find.text('source'), findsNothing);
+      expect(layerRemoved, 0);
+      expect(navigatorKey.currentState!.userGestureInProgress, isFalse);
+
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(layerRemoved, 1);
+      expect(find.text('destination'), findsOneWidget);
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('source'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('button back uses normal pop instead of preview transaction', (
     tester,
   ) async {

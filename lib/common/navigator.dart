@@ -45,6 +45,16 @@ abstract interface class CommonRouteResultHost {
   void updateCurrentResult(Object? result);
 }
 
+abstract interface class _PredictiveBackRecoverableRoute {
+  bool get hasPredictiveBackInterruption;
+
+  void beginPredictiveBackInterruption();
+
+  void completePredictiveBackInterruption();
+
+  void finishPredictiveBackInterruption();
+}
+
 mixin CommonRouteResultMixin<T> on Route<T> implements CommonRouteResultHost {
   T? _currentResult;
 
@@ -216,7 +226,7 @@ class _PredictiveBackCoordinatorState extends State<PredictiveBackCoordinator>
       }
       if (!transaction.navigator.userGestureInProgress) {
         _settlingTransaction = null;
-        transaction.owner._finishSettlement(transaction.id);
+        transaction.owner._finishSettlement(transaction.id, transaction.route);
         return;
       }
       final canContinue = transaction.owner._canContinueSettlement(
@@ -448,6 +458,9 @@ class _DirectPreviousBackPreviewState
           return;
         }
         _updateOverlayOpacity(route, false);
+        if (visibilityChanged && mounted) {
+          setState(() {});
+        }
       });
     } else {
       _updateOverlayOpacity(route, false);
@@ -469,7 +482,13 @@ class _DirectPreviousBackPreviewState
     if (!route.isActive) {
       return;
     }
-    route.handleUpdateBackGestureProgress(progress: 0);
+    if (route case final _PredictiveBackRecoverableRoute recoverableRoute) {
+      recoverableRoute.completePredictiveBackInterruption();
+      return;
+    }
+    if (route.isCurrent) {
+      route.handleUpdateBackGestureProgress(progress: 0);
+    }
   }
 
   bool _startGesture(int transactionId, PageRoute<dynamic> route) {
@@ -478,6 +497,9 @@ class _DirectPreviousBackPreviewState
     }
     _activeTransactionId = transactionId;
     _settlingTransactionId = null;
+    if (route case final _PredictiveBackRecoverableRoute recoverableRoute) {
+      recoverableRoute.beginPredictiveBackInterruption();
+    }
     route.handleStartBackGesture(progress: 0);
     _showPreview(transactionId, route);
     return true;
@@ -487,7 +509,9 @@ class _DirectPreviousBackPreviewState
     return _activeTransactionId == transactionId &&
         identical(widget.route, route) &&
         route.isActive &&
-        route.isCurrent;
+        route.isCurrent &&
+        !route.willHandlePopInternally &&
+        route.popDisposition == RoutePopDisposition.pop;
   }
 
   bool _canContinueSettlement(int transactionId, PageRoute<dynamic> route) {
@@ -529,6 +553,26 @@ class _DirectPreviousBackPreviewState
     }
     _activeTransactionId = null;
     route.handleCommitBackGesture();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _visualTransactionId != transactionId ||
+          !route.isActive ||
+          !route.isCurrent ||
+          (route.animation?.isAnimating ?? false)) {
+        return;
+      }
+      _restoreVisual(
+        transactionId,
+        route,
+        rebuild: true,
+        deferOverlayRestore: false,
+      );
+      _forceAnimationCompleted(route);
+      final navigator = route.navigator;
+      if (navigator?.userGestureInProgress ?? false) {
+        navigator!.didStopUserGesture();
+      }
+    });
   }
 
   void _forceAbort(
@@ -594,9 +638,13 @@ class _DirectPreviousBackPreviewState
     }
   }
 
-  void _finishSettlement(int transactionId) {
-    if (_settlingTransactionId == transactionId) {
-      _settlingTransactionId = null;
+  void _finishSettlement(int transactionId, PageRoute<dynamic> route) {
+    if (_settlingTransactionId != transactionId) {
+      return;
+    }
+    _settlingTransactionId = null;
+    if (route case final _PredictiveBackRecoverableRoute recoverableRoute) {
+      recoverableRoute.finishPredictiveBackInterruption();
     }
   }
 
@@ -685,8 +733,66 @@ class CommonDesktopRoute<T> extends PageRoute<T>
 }
 
 class CommonRoute<T> extends MaterialPageRoute<T>
-    with CommonRouteResultMixin<T> {
+    with CommonRouteResultMixin<T>
+    implements _PredictiveBackRecoverableRoute {
   CommonRoute({required super.builder});
+
+  bool _hasPredictiveBackInterruption = false;
+  bool _needsPredictiveBackSurfaceRecovery = false;
+
+  @override
+  bool get hasPredictiveBackInterruption => _hasPredictiveBackInterruption;
+
+  @override
+  void beginPredictiveBackInterruption() {
+    _hasPredictiveBackInterruption = true;
+  }
+
+  @override
+  void completePredictiveBackInterruption() {
+    final animationController = controller;
+    if (animationController != null && !animationController.isCompleted) {
+      animationController.value = animationController.upperBound;
+    }
+    _needsPredictiveBackSurfaceRecovery = !isCurrent;
+    _hasPredictiveBackInterruption = false;
+  }
+
+  @override
+  void finishPredictiveBackInterruption() {
+    _hasPredictiveBackInterruption = false;
+  }
+
+  @override
+  void didPopNext(Route<dynamic> nextRoute) {
+    super.didPopNext(nextRoute);
+    if (!_needsPredictiveBackSurfaceRecovery) {
+      return;
+    }
+    _needsPredictiveBackSurfaceRecovery = false;
+    void markNeedsPaint(RenderObject renderObject) {
+      renderObject.markNeedsPaint();
+      renderObject.visitChildren(markNeedsPaint);
+    }
+
+    final renderObject = subtreeContext?.findRenderObject();
+    if (renderObject != null) {
+      markNeedsPaint(renderObject);
+    }
+  }
+
+  @override
+  void didReplace(Route<dynamic>? oldRoute) {
+    final replacesInterruptedRoute = switch (oldRoute) {
+      final _PredictiveBackRecoverableRoute route =>
+        route.hasPredictiveBackInterruption,
+      _ => false,
+    };
+    super.didReplace(oldRoute);
+    if (replacesInterruptedRoute) {
+      completePredictiveBackInterruption();
+    }
+  }
 }
 
 final Animatable<Offset> _kRightMiddleTween = Tween<Offset>(
