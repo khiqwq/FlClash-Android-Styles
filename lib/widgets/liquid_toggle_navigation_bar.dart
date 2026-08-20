@@ -646,6 +646,14 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                 maxPosition,
               );
               final progress = _pressController.value.clamp(0.0, 1.0);
+              final selectedLabelColor = isDark
+                  ? context.colorScheme.onSurface
+                  : Colors.black;
+              final selectedIconColor = Color.lerp(
+                context.colorScheme.primary,
+                selectedLabelColor,
+                progress,
+              )!;
               final velocity = _velocityController.value / 50;
               final scaleX =
                   _scaleXController.value /
@@ -693,6 +701,7 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                         transformHitTests: false,
                         child: CustomPaint(
                           child: AndroidGlassSurface(
+                            key: const ValueKey('liquid-indicator-surface'),
                             blur: false,
                             liquidGlass: true,
                             liquidProgress: progress,
@@ -705,9 +714,11 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                             liquidSamplePadding: 0,
                             scaleLiquidBlurWithProgress: false,
                             showLiquidRim: false,
-                            surfaceColor: Colors.white.withValues(
-                              alpha: 1 - progress,
-                            ),
+                            surfaceColor:
+                                (isDark
+                                        ? context.colorScheme.surfaceContainer
+                                        : Colors.white)
+                                    .withValues(alpha: 1 - progress),
                             borderRadius: BorderRadius.circular(
                               indicatorHeight / 2,
                             ),
@@ -771,15 +782,8 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                                       child: ExcludeSemantics(
                                         child: _LiquidNavigationContent(
                                           item: widget.items[index],
-                                          color: context.colorScheme.primary,
-                                          labelColor: Color.lerp(
-                                            Colors.black,
-                                            context.colorScheme.primary,
-                                            progress,
-                                          ),
-                                          labelKey: ValueKey(
-                                            'liquid-accent-label-$index',
-                                          ),
+                                          color: selectedIconColor,
+                                          labelColor: Colors.transparent,
                                           selected: true,
                                         ),
                                       ),
@@ -804,6 +808,31 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    PositionedDirectional(
+                      key: const ValueKey('liquid-selected-label-layer'),
+                      start: indicatorStart,
+                      top: _trackPadding,
+                      width: max(_cellWidth, 1),
+                      height: max(indicatorHeight, 1),
+                      child: IgnorePointer(
+                        child: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
+                          transformHitTests: false,
+                          child: ExcludeSemantics(
+                            child: _LiquidNavigationContent(
+                              item: widget.items[committedIndex],
+                              color: Colors.transparent,
+                              labelColor: selectedLabelColor,
+                              labelKey: const ValueKey(
+                                'liquid-accent-label-selected',
+                              ),
+                              selected: true,
                             ),
                           ),
                         ),

@@ -282,7 +282,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
     ref.read(themeSettingProvider.notifier).update((state) {
       return state.copyWith(
         primaryColors: defaultPrimaryColors,
-        primaryColor: defaultPrimaryColor,
+        primaryColor: null,
         schemeVariant: DynamicSchemeVariant.content,
         enableMonetColors: true,
       );
@@ -490,6 +490,8 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
                                             .update(
                                               (state) => state.copyWith(
                                                 primaryColor: color,
+                                                enableMonetColors:
+                                                    color == null,
                                               ),
                                             );
                                       },
@@ -578,7 +580,12 @@ class MonetColorsSetting extends ConsumerWidget {
       onChanged: (value) {
         ref
             .read(themeSettingProvider.notifier)
-            .update((state) => state.copyWith(enableMonetColors: value));
+            .update(
+              (state) => state.copyWith(
+                enableMonetColors: value,
+                primaryColor: value ? null : state.primaryColor,
+              ),
+            );
       },
     );
   }
