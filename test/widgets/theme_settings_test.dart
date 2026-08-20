@@ -119,6 +119,44 @@ void main() {
     expect(container.read(configProvider).themeProps.primaryColor, isNull);
   });
 
+  testWidgets('interface style switches preserve manual Material color', (
+    tester,
+  ) async {
+    const primaryColor = 0xFF663399;
+    container
+        .read(themeSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            interfaceStyle: InterfaceStyle.material,
+            enableMonetColors: false,
+            primaryColor: primaryColor,
+          ),
+        );
+    await tester.pumpWidget(buildApp(const InterfaceStyleSelector()));
+    await tester.pumpAndSettle();
+    final localizations = AppLocalizations.of(
+      tester.element(find.byType(InterfaceStyleSelector)),
+    );
+
+    await tester.tap(findListTileByKey('interface-style-selector'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(localizations.miuixStyle));
+    await tester.pumpAndSettle();
+    await tester.tap(findListTileByKey('interface-style-selector'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(localizations.materialStyle));
+    await tester.pumpAndSettle();
+
+    final theme = container.read(themeSettingProvider);
+    expect(theme.interfaceStyle, InterfaceStyle.material);
+    expect(theme.enableMonetColors, false);
+    expect(theme.primaryColor, primaryColor);
+    expect(container.read(configProvider).themeProps.enableMonetColors, false);
+    expect(
+      container.read(configProvider).themeProps.primaryColor,
+      primaryColor,
+    );
+  });
   testWidgets('Monet color toggle updates the persisted theme setting', (
     tester,
   ) async {
