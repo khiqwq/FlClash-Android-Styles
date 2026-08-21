@@ -52,10 +52,10 @@ jobs:
       - name: Setup Android API 37
         run: |
           set -euo pipefail
-          sdkmanager=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f -print -quit)
-          test -x "$sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null || true
-          "$sdkmanager" 'platforms;android-37' 'build-tools;37.0.0'
+          curl -fsSL https://dl.google.com/android/cli/latest/linux_x86_64/install.sh | bash
+          android_cli=$(find "$HOME" -path '*/bin/android' -type f -print -quit)
+          test -x "$android_cli"
+          yes | "$android_cli" sdk install 'platforms/android-37.0' 'build-tools/37.0.0'
 
       - name: Setup Gradle 9.4.1
         uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244
