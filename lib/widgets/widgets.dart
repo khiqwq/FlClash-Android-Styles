@@ -42,3 +42,4 @@ export 'tab.dart';
 export 'text.dart';
 export 'theme.dart';
 export 'wave.dart';
+export 'native_liquid_navigation_bridge.dart';

@@ -1,0 +1,115 @@
+name: Android native liquid build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/android-native-liquid
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Build Android native liquid APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.26.4'
+          cache: false
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version: '3.44.4'
+          cache: false
+
+      - name: Setup Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779
+        with:
+          ndk-version: r28c
+          add-to-path: true
+          link-to-sdk: true
+
+      - name: Setup Android API 37
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          if ! sdkmanager 'platforms;android-37' 'build-tools;37.0.0'; then
+            android sdk install 'platforms/android-37.0' 'build-tools/37.0.0'
+          fi
+
+      - name: Setup Gradle 9.4.1
+        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test navigation and appearance
+        run: >-
+          flutter test
+          test/pages/navigation_bar_appearance_test.dart
+          test/pages/home_test.dart
+          test/widgets/theme_settings_test.dart
+          test/liquid_glass_shader_test.dart
+          --reporter expanded
+
+      - name: Test native liquid geometry
+        working-directory: android
+        run: gradle :app:testDebugUnitTest --no-daemon
+
+      - name: Use Gradle 9.4.1 wrapper
+        working-directory: android
+        run: gradle wrapper --gradle-version 9.4.1 --distribution-type all
+
+      - name: Build debug arm64 APK
+        env:
+          ANDROID_NDK: ${{ steps.ndk.outputs.ndk-path }}
+          GOFLAGS: -buildvcs=false
+        run: >-
+          flutter build apk
+          --debug
+          --target-platform android-arm64
+
+      - name: Verify APK
+        run: |
+          set -euo pipefail
+          apk=build/app/outputs/flutter-apk/app-debug.apk
+          test -f "$apk"
+          build_tools=$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          package=$($build_tools/aapt2 dump packagename "$apk" | tr -d '\r')
+          test "$package" = 'com.follow.clash.local'
+          $build_tools/apksigner verify --verbose --print-certs "$apk"
+          sha256sum "$apk" > "$apk.sha256"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: FlClash-native-liquid-arm64-${{ github.sha }}
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/flutter-apk/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
