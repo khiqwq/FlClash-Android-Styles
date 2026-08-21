@@ -9,6 +9,7 @@ import android.view.Surface
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.follow.clash.plugins.AppPlugin
