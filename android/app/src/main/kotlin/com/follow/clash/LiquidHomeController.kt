@@ -19,6 +19,7 @@ internal data class LiquidNavigationState(
     val labels: List<String> = emptyList(),
     val pageKeys: List<String> = emptyList(),
     val selectedIndex: Int = 0,
+    val liquidGlass: Boolean = false,
     val dark: Boolean = false,
     val rtl: Boolean = false,
 )
@@ -88,6 +89,7 @@ internal object LiquidHomeController {
                     labels = labels,
                     pageKeys = pageKeys,
                     selectedIndex = selectedIndex,
+                    liquidGlass = arguments["liquidGlass"] as? Boolean ?: false,
                     dark = arguments["dark"] as? Boolean ?: false,
                     rtl = arguments["rtl"] as? Boolean ?: false,
                 )

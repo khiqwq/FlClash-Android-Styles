@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
@@ -20,6 +21,7 @@ import androidx.compose.material.lightColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -65,6 +67,7 @@ fun LiquidHomeOverlay() {
                         contentScale = ContentScale.FillBounds,
                         modifier = Modifier
                             .fillMaxSize()
+                            .alpha(0f)
                             .layerBackdrop(backdrop),
                     )
                 } else {
@@ -79,11 +82,13 @@ fun LiquidHomeOverlay() {
                     onTabSelected = LiquidHomeController::select,
                     backdrop = backdrop,
                     tabsCount = navigation.labels.size,
+                    liquidGlass = navigation.liquidGlass,
                     isDarkTheme = navigation.dark,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .widthIn(max = navigation.labels.size.times(88).plus(8).dp)
                         .fillMaxWidth()
                         .height(64.dp),
                 ) {

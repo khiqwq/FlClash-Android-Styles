@@ -202,11 +202,12 @@ class HomePage extends ConsumerWidget {
               final isTranslucent =
                   isAndroidAppearance &&
                   (appearance.blur || isFloating && !liquidGlass);
-              final useNativeLiquidNavigation = liquidGlass && system.isAndroid;
+              final useNativeFloatingNavigation =
+                  isAndroid && isFloating && appearance.isMiuix;
               final useLiquidNavigation =
-                  liquidGlass && !useNativeLiquidNavigation;
+                  liquidGlass && !useNativeFloatingNavigation;
               final useMiuixNavigation = appearance.isMiuix;
-              final bottomNavigationBar = useNativeLiquidNavigation
+              final bottomNavigationBar = useNativeFloatingNavigation
                   ? NativeLiquidNavigationBridge(
                       labels: navigationItems
                           .map((item) => Intl.message(item.label.name))
@@ -215,6 +216,7 @@ class HomePage extends ConsumerWidget {
                           .map((item) => item.label.name)
                           .toList(growable: false),
                       selectedIndex: currentIndex,
+                      liquidGlass: liquidGlass,
                       onSelected: (index) {
                         _handleToPage(navigationItems[index].label);
                       },
@@ -262,13 +264,17 @@ class HomePage extends ConsumerWidget {
                       ),
                     );
               final coloredBottomNavigationBar =
-                  !liquidGlass && appearance.isMiuix && !isTranslucent
+                  !useNativeFloatingNavigation &&
+                      !liquidGlass &&
+                      appearance.isMiuix &&
+                      !isTranslucent
                   ? ColoredBox(
                       color: context.colorScheme.surfaceContainer,
                       child: bottomNavigationBar,
                     )
                   : bottomNavigationBar;
-              final navigationSurface = liquidGlass
+              final navigationSurface =
+                  useNativeFloatingNavigation || liquidGlass
                   ? bottomNavigationBar
                   : isTranslucent
                   ? AndroidGlassSurface(
@@ -292,7 +298,7 @@ class HomePage extends ConsumerWidget {
                         ),
                         child: Padding(
                           padding: AndroidAppearanceTokens.floatingBarMargin,
-                          child: liquidGlass
+                          child: useNativeFloatingNavigation || liquidGlass
                               ? navigationSurface
                               : Material(
                                   elevation: 5,
@@ -323,7 +329,8 @@ class HomePage extends ConsumerWidget {
               );
               if (isFloating) {
                 final mediaQuery = MediaQuery.of(context);
-                final navigationBarHeight = liquidGlass
+                final navigationBarHeight =
+                    useNativeFloatingNavigation || liquidGlass
                     ? AndroidAppearanceTokens.liquidNavigationBarHeight
                     : appearance.isMiuix
                     ? AndroidAppearanceTokens.miuixNavigationBarHeight

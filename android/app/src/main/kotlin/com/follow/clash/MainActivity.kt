@@ -42,7 +42,7 @@ class MainActivity : FlutterActivity() {
 
     override fun getRenderMode(): RenderMode = RenderMode.texture
 
-    override fun getTransparencyMode(): TransparencyMode = TransparencyMode.transparent
+    override fun getTransparencyMode(): TransparencyMode = TransparencyMode.opaque
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
