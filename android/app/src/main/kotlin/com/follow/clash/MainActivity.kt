@@ -48,6 +48,7 @@ class MainActivity : FlutterActivity() {
                 LiquidHomeOverlay()
             }
         }
+        liquidOverlay.setViewTreeLifecycleOwner(this)
         root.addView(
             liquidOverlay,
             FrameLayout.LayoutParams(
