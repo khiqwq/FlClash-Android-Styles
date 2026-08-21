@@ -51,10 +51,11 @@ jobs:
 
       - name: Setup Android API 37
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          if ! sdkmanager 'platforms;android-37' 'build-tools;37.0.0'; then
-            android sdk install 'platforms/android-37.0' 'build-tools/37.0.0'
-          fi
+          set -euo pipefail
+          sdkmanager=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f -print -quit)
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null || true
+          "$sdkmanager" 'platforms;android-37' 'build-tools;37.0.0'
 
       - name: Setup Gradle 9.4.1
         uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244
