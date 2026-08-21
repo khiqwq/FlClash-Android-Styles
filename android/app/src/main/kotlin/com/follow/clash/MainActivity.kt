@@ -48,7 +48,7 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         val root = findViewById<ViewGroup>(android.R.id.content)
         liquidTreeOwner = LiquidComposeTreeOwner(
-            lifecycleOwner = this,
+            host = this,
             restoredState = savedInstanceState?.getBundle(LIQUID_STATE_KEY),
         )
         liquidOverlay = ComposeView(this).apply {
