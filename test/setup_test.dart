@@ -61,7 +61,8 @@ void main() {
       'b90f4a8b18967545fda78a445b27680a1642f1ef9488ced28b65398f2be7add2',
     );
     final source = File('setup.dart').readAsStringSync();
-    expect(source, contains(r"'appdmg@$appdmgVersion'"));
+    expect(source, contains("Process.run('npm', ["));
+    expect(source, contains('appdmgToolingPath'));
     expect(source, contains('_hasExpectedSha256'));
   });
 }

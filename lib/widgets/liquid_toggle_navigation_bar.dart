@@ -149,14 +149,8 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
       );
       return;
     }
-    final awaitingMatchesBaseline =
-        _awaitingExternalIndex != null &&
-        _awaitingExternalIndex == _awaitingExternalBaselineIndex;
     if (widget.selectedIndex != _awaitingExternalIndex &&
-        _consumeSupersededExternalIndex(
-          widget.selectedIndex,
-          includeExpired: awaitingMatchesBaseline,
-        )) {
+        _consumeSupersededExternalIndex(widget.selectedIndex)) {
       final awaitingExternalIndex = _awaitingExternalIndex;
       if (awaitingExternalIndex != null &&
           awaitingExternalIndex != _awaitingExternalBaselineIndex) {
@@ -260,20 +254,15 @@ class _LiquidToggleNavigationBarState extends State<LiquidToggleNavigationBar>
     );
   }
 
-  bool _consumeSupersededExternalIndex(
-    int index, {
-    required bool includeExpired,
-  }) {
+  bool _consumeSupersededExternalIndex(int index) {
     final times = _supersededExternalTimes[index];
     if (times == null) {
       return false;
     }
     final now = WidgetsBinding.instance.currentSystemFrameTimeStamp;
-    final activeTimes = includeExpired
-        ? times
-        : times
-              .where((time) => now - time <= const Duration(milliseconds: 250))
-              .toList();
+    final activeTimes = times
+        .where((time) => now - time <= const Duration(milliseconds: 250))
+        .toList();
     if (activeTimes.isEmpty) {
       _supersededExternalTimes.remove(index);
       return false;

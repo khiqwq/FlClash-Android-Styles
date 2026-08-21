@@ -1,0 +1,7 @@
+{
+  "name": "flclash-appdmg-tooling",
+  "private": true,
+  "dependencies": {
+    "appdmg": "0.6.6"
+  }
+}
