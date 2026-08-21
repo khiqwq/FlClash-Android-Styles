@@ -1,12 +1,82 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+final ValueNotifier<int> nativeLiquidNavigationRouteDepth = ValueNotifier(0);
+final NavigatorObserver nativeLiquidNavigationRouteObserver =
+    _NativeLiquidNavigationRouteObserver();
+
+class _NativeLiquidNavigationRouteObserver extends NavigatorObserver {
+  final List<Route<dynamic>> _routes = <Route<dynamic>>[];
+  int _revision = 0;
+
+  void _updateDepth() {
+    nativeLiquidNavigationRouteDepth.value = (_routes.length - 1).clamp(0, 1);
+  }
+
+  void _updateDepthAfterTransition(Route<dynamic> route) {
+    final revision = ++_revision;
+    if (route is TransitionRoute<dynamic>) {
+      unawaited(
+        route.completed.whenComplete(() {
+          if (revision == _revision) {
+            _updateDepth();
+          }
+        }),
+      );
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (revision == _revision) {
+        _updateDepth();
+      }
+    });
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _routes.add(route);
+    _revision++;
+    _updateDepth();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _routes.remove(route);
+    _updateDepthAfterTransition(route);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _routes.remove(route);
+    _updateDepthAfterTransition(route);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final index = oldRoute == null ? -1 : _routes.indexOf(oldRoute);
+    if (index >= 0 && newRoute != null) {
+      _routes[index] = newRoute;
+    } else {
+      if (oldRoute != null) {
+        _routes.remove(oldRoute);
+      }
+      if (newRoute != null) {
+        _routes.add(newRoute);
+      }
+    }
+    _revision++;
+    _updateDepth();
+  }
+}
 
 class NativeLiquidNavigationBridge extends StatefulWidget {
   final List<String> labels;
   final List<String> pageKeys;
   final int selectedIndex;
+  final bool liquidGlass;
   final ValueChanged<int> onSelected;
   final Widget child;
 
@@ -15,6 +85,7 @@ class NativeLiquidNavigationBridge extends StatefulWidget {
     required this.labels,
     required this.pageKeys,
     required this.selectedIndex,
+    required this.liquidGlass,
     required this.onSelected,
     required this.child,
   });
@@ -30,10 +101,15 @@ class _NativeLiquidNavigationBridgeState
     'com.follow.clash/liquid_navigation',
   );
 
+  _NativeLiquidNavigationPayload? _lastPayload;
+  _NativeLiquidNavigationPayload? _pendingPayload;
+  bool _synchronizationScheduled = false;
+
   @override
   void initState() {
     super.initState();
     _channel.setMethodCallHandler(_handleMethodCall);
+    nativeLiquidNavigationRouteDepth.addListener(_synchronize);
   }
 
   @override
@@ -59,27 +135,106 @@ class _NativeLiquidNavigationBridgeState
   }
 
   void _synchronize() {
-    final brightness = Theme.brightnessOf(context);
-    final direction = Directionality.of(context);
-    unawaited(
-      _channel.invokeMethod<void>('update', <String, Object>{
-        'visible': true,
-        'labels': widget.labels,
-        'pageKeys': widget.pageKeys,
-        'selectedIndex': widget.selectedIndex,
-        'dark': brightness == Brightness.dark,
-        'rtl': direction == TextDirection.rtl,
-      }),
+    if (!mounted) {
+      return;
+    }
+    final payload = _NativeLiquidNavigationPayload(
+      visible: nativeLiquidNavigationRouteDepth.value == 0,
+      labels: List<String>.unmodifiable(widget.labels),
+      pageKeys: List<String>.unmodifiable(widget.pageKeys),
+      selectedIndex: widget.selectedIndex,
+      liquidGlass: widget.liquidGlass,
+      dark: Theme.brightnessOf(context) == Brightness.dark,
+      rtl: Directionality.of(context) == TextDirection.rtl,
     );
+    if (payload == _lastPayload || payload == _pendingPayload) {
+      return;
+    }
+    _pendingPayload = payload;
+    if (_synchronizationScheduled) {
+      return;
+    }
+    _synchronizationScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _synchronizationScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      final nextPayload = _pendingPayload;
+      _pendingPayload = null;
+      if (nextPayload == null || nextPayload == _lastPayload) {
+        return;
+      }
+      _lastPayload = nextPayload;
+      unawaited(_channel.invokeMethod<void>('update', nextPayload.toMap()));
+    });
   }
 
   @override
   void dispose() {
+    nativeLiquidNavigationRouteDepth.removeListener(_synchronize);
     _channel.setMethodCallHandler(null);
+    _pendingPayload = null;
     unawaited(_channel.invokeMethod<void>('hide'));
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+@immutable
+class _NativeLiquidNavigationPayload {
+  final bool visible;
+  final List<String> labels;
+  final List<String> pageKeys;
+  final int selectedIndex;
+  final bool liquidGlass;
+  final bool dark;
+  final bool rtl;
+
+  const _NativeLiquidNavigationPayload({
+    required this.visible,
+    required this.labels,
+    required this.pageKeys,
+    required this.selectedIndex,
+    required this.liquidGlass,
+    required this.dark,
+    required this.rtl,
+  });
+
+  Map<String, Object> toMap() {
+    return <String, Object>{
+      'visible': visible,
+      'labels': labels,
+      'pageKeys': pageKeys,
+      'selectedIndex': selectedIndex,
+      'liquidGlass': liquidGlass,
+      'dark': dark,
+      'rtl': rtl,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is _NativeLiquidNavigationPayload &&
+        other.visible == visible &&
+        listEquals(other.labels, labels) &&
+        listEquals(other.pageKeys, pageKeys) &&
+        other.selectedIndex == selectedIndex &&
+        other.liquidGlass == liquidGlass &&
+        other.dark == dark &&
+        other.rtl == rtl;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    visible,
+    Object.hashAll(labels),
+    Object.hashAll(pageKeys),
+    selectedIndex,
+    liquidGlass,
+    dark,
+    rtl,
+  );
 }

@@ -155,7 +155,7 @@ void main() {
         progress: 0.5,
       );
       await tester.pump();
-      expect(find.text('root destination'), findsNothing);
+      expect(find.text('root destination'), findsOneWidget);
       expect(
         find.text('root destination', skipOffstage: false),
         findsOneWidget,
@@ -199,7 +199,7 @@ void main() {
       );
       await tester.pump();
       expect(find.text('source'), findsOneWidget);
-      expect(find.text('destination'), findsNothing);
+      expect(find.text('destination'), findsOneWidget);
       expect(find.text('destination', skipOffstage: false), findsOneWidget);
       expect(
         find
@@ -222,7 +222,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('source'), findsOneWidget);
-      expect(find.text('destination'), findsNothing);
+      expect(find.text('destination'), findsOneWidget);
 
       await _sendBackGesture(tester, 'cancelBackGesture');
       await tester.pumpAndSettle();
@@ -287,7 +287,7 @@ void main() {
       );
       await tester.pump();
       expect(find.text('source'), findsOneWidget);
-      expect(find.text('destination'), findsNothing);
+      expect(find.text('destination'), findsOneWidget);
       expect(find.text('destination', skipOffstage: false), findsOneWidget);
       expect(completed, isFalse);
       expect(observer.popCount, 0);
@@ -349,7 +349,7 @@ void main() {
       await _sendBackGesture(tester, 'startBackGesture', progress: 0);
       await tester.pump();
       expect(find.text('source'), findsOneWidget);
-      expect(find.text('destination'), findsNothing);
+      expect(find.text('destination'), findsOneWidget);
       expect(navigatorKey.currentState!.userGestureInProgress, isTrue);
 
       predictiveBack.value = false;
@@ -786,7 +786,7 @@ void main() {
       );
       await tester.pump();
       expect(find.text('source'), findsOneWidget);
-      expect(find.text('destination'), findsNothing);
+      expect(find.text('destination'), findsOneWidget);
       expect(find.text('destination', skipOffstage: false), findsOneWidget);
       expect(result, isNull);
       expect(observer.popCount, 0);

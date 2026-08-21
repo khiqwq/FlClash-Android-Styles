@@ -291,7 +291,11 @@ class _PredictiveBackCoordinatorState extends State<PredictiveBackCoordinator>
       _abortTransaction(transaction, rebuild: true, deferOverlayRestore: false);
       return;
     }
-    transaction.owner._updateGesture(transaction.id, transaction.route);
+    transaction.owner._updateGesture(
+      transaction.id,
+      transaction.route,
+      backEvent.progress,
+    );
   }
 
   @override
@@ -521,12 +525,16 @@ class _DirectPreviousBackPreviewState
         route.isCurrent;
   }
 
-  void _updateGesture(int transactionId, PageRoute<dynamic> route) {
+  void _updateGesture(
+    int transactionId,
+    PageRoute<dynamic> route,
+    double progress,
+  ) {
     if (_activeTransactionId != transactionId ||
         !identical(widget.route, route)) {
       return;
     }
-    route.handleUpdateBackGestureProgress(progress: 0);
+    route.handleUpdateBackGestureProgress(progress: progress);
     _showPreview(transactionId, route);
   }
 
@@ -685,14 +693,12 @@ class _DirectPreviousBackPreviewState
 
   @override
   Widget build(BuildContext context) {
-    if (_previousRouteVisible) {
-      return Offstage(child: widget.child);
-    }
-    return ColoredBox(
+    final surface = ColoredBox(
       key: const ValueKey('common-route-transition-surface'),
-      color: widget.surface,
+      color: _previousRouteVisible ? Colors.transparent : widget.surface,
       child: widget.child,
     );
+    return IgnorePointer(ignoring: _previousRouteVisible, child: surface);
   }
 }
 

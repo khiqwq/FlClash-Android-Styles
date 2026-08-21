@@ -10,6 +10,8 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -202,11 +204,12 @@ class HomePage extends ConsumerWidget {
               final isTranslucent =
                   isAndroidAppearance &&
                   (appearance.blur || isFloating && !liquidGlass);
-              final useNativeLiquidNavigation = liquidGlass && system.isAndroid;
+              final useNativeFloatingNavigation =
+                  isAndroid && isFloating && appearance.isMiuix;
               final useLiquidNavigation =
-                  liquidGlass && !useNativeLiquidNavigation;
+                  liquidGlass && !useNativeFloatingNavigation;
               final useMiuixNavigation = appearance.isMiuix;
-              final bottomNavigationBar = useNativeLiquidNavigation
+              final bottomNavigationBar = useNativeFloatingNavigation
                   ? NativeLiquidNavigationBridge(
                       labels: navigationItems
                           .map((item) => Intl.message(item.label.name))
@@ -215,6 +218,7 @@ class HomePage extends ConsumerWidget {
                           .map((item) => item.label.name)
                           .toList(growable: false),
                       selectedIndex: currentIndex,
+                      liquidGlass: liquidGlass,
                       onSelected: (index) {
                         _handleToPage(navigationItems[index].label);
                       },
@@ -262,13 +266,17 @@ class HomePage extends ConsumerWidget {
                       ),
                     );
               final coloredBottomNavigationBar =
-                  !liquidGlass && appearance.isMiuix && !isTranslucent
+                  !useNativeFloatingNavigation &&
+                      !liquidGlass &&
+                      appearance.isMiuix &&
+                      !isTranslucent
                   ? ColoredBox(
                       color: context.colorScheme.surfaceContainer,
                       child: bottomNavigationBar,
                     )
                   : bottomNavigationBar;
-              final navigationSurface = liquidGlass
+              final navigationSurface =
+                  useNativeFloatingNavigation || liquidGlass
                   ? bottomNavigationBar
                   : isTranslucent
                   ? AndroidGlassSurface(
@@ -292,7 +300,7 @@ class HomePage extends ConsumerWidget {
                         ),
                         child: Padding(
                           padding: AndroidAppearanceTokens.floatingBarMargin,
-                          child: liquidGlass
+                          child: useNativeFloatingNavigation || liquidGlass
                               ? navigationSurface
                               : Material(
                                   elevation: 5,
@@ -323,7 +331,8 @@ class HomePage extends ConsumerWidget {
               );
               if (isFloating) {
                 final mediaQuery = MediaQuery.of(context);
-                final navigationBarHeight = liquidGlass
+                final navigationBarHeight =
+                    useNativeFloatingNavigation || liquidGlass
                     ? AndroidAppearanceTokens.liquidNavigationBarHeight
                     : appearance.isMiuix
                     ? AndroidAppearanceTokens.miuixNavigationBarHeight
@@ -332,12 +341,17 @@ class HomePage extends ConsumerWidget {
                     mediaQuery.viewPadding.bottom +
                     navigationBarHeight +
                     AndroidAppearanceTokens.floatingBarMargin.vertical;
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    FocusTraversalGroup(
-                      policy: PageTraversalPolicy(),
-                      child: MediaQuery(
+                final floatingContent = useNativeFloatingNavigation
+                    ? MediaQuery(
+                        data: mediaQuery.copyWith(
+                          padding: mediaQuery.padding.copyWith(
+                            left: 0,
+                            right: 0,
+                          ),
+                        ),
+                        child: page,
+                      )
+                    : MediaQuery(
                         data: mediaQuery.copyWith(
                           padding: mediaQuery.padding.copyWith(
                             left: 0,
@@ -346,7 +360,13 @@ class HomePage extends ConsumerWidget {
                           ),
                         ),
                         child: page,
-                      ),
+                      );
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    FocusTraversalGroup(
+                      policy: PageTraversalPolicy(),
+                      child: floatingContent,
                     ),
                     Positioned(
                       left: 0,
@@ -399,6 +419,7 @@ class HomePage extends ConsumerWidget {
                 );
                 return _HomePageView(
                   navigationItems: navigationItems,
+                  preloadPages: isAndroid && isMobile,
                   pageBuilder: (_, index) {
                     final navigationItem = navigationItems[index];
                     final navigationView = navigationItem.builder(context);
@@ -448,10 +469,12 @@ class HomePage extends ConsumerWidget {
 class _HomePageView extends ConsumerStatefulWidget {
   final IndexedWidgetBuilder pageBuilder;
   final List<NavigationItem> navigationItems;
+  final bool preloadPages;
 
   const _HomePageView({
     required this.pageBuilder,
     required this.navigationItems,
+    required this.preloadPages,
   });
 
   @override
@@ -460,11 +483,21 @@ class _HomePageView extends ConsumerStatefulWidget {
 
 class _HomePageViewState extends ConsumerState<_HomePageView> {
   late PageController _pageController;
+  bool _preloadPages = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: max(_pageIndex, 0));
+    if (widget.preloadPages) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _preloadPages = true;
+          });
+        }
+      });
+    }
     ref.listenManual(currentPageLabelProvider, (prev, next) {
       if (prev != next) {
         _toPage(next);
@@ -505,8 +538,8 @@ class _HomePageViewState extends ConsumerState<_HomePageView> {
     if (isAnimateToPage && isMobile && !ignoreAnimateTo) {
       await _pageController.animateToPage(
         index,
-        duration: kTabScrollDuration,
-        curve: Curves.easeOut,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
       );
     } else {
       _pageController.jumpToPage(index);
@@ -544,6 +577,10 @@ class _HomePageViewState extends ConsumerState<_HomePageView> {
     return PageView.builder(
       controller: _pageController,
       physics: const NeverScrollableScrollPhysics(),
+      allowImplicitScrolling: _preloadPages,
+      scrollCacheExtent: ScrollCacheExtent.viewport(
+        _preloadPages ? itemCount.toDouble() : 0,
+      ),
       itemCount: itemCount,
       findChildIndexCallback: (key) {
         if (key is! ValueKey<PageLabel>) {
@@ -643,7 +680,10 @@ class HomeBackScopeContainer extends ConsumerWidget {
     final minimizeOnExit = ref.watch(
       appSettingProvider.select((state) => state.minimizeOnExit),
     );
-    if (isAndroid && minimizeOnExit) {
+    final currentPageLabel = ref.watch(currentPageLabelProvider);
+    if (isAndroid &&
+        minimizeOnExit &&
+        currentPageLabel == PageLabel.dashboard) {
       return child;
     }
     return CommonPopScope(
@@ -655,6 +695,10 @@ class HomeBackScopeContainer extends ConsumerWidget {
         final canPop = Navigator.canPop(realContext);
         if (canPop) {
           Navigator.of(realContext).pop();
+        } else if (pageLabel != PageLabel.dashboard) {
+          ref
+              .read(currentPageLabelProvider.notifier)
+              .toPage(PageLabel.dashboard);
         } else {
           final close = onRootClose;
           if (close != null) {

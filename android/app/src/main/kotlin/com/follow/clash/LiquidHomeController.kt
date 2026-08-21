@@ -1,8 +1,6 @@
 package com.follow.clash
 
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
 import io.flutter.plugin.common.BinaryMessenger
@@ -19,17 +17,44 @@ internal data class LiquidNavigationState(
     val labels: List<String> = emptyList(),
     val pageKeys: List<String> = emptyList(),
     val selectedIndex: Int = 0,
+    val liquidGlass: Boolean = false,
     val dark: Boolean = false,
     val rtl: Boolean = false,
 )
+
+internal object LiquidCapturePolicy {
+    fun shouldSchedule(
+        hostStarted: Boolean,
+        visible: Boolean,
+        liquidGlass: Boolean,
+        dragging: Boolean,
+    ): Boolean {
+        return hostStarted && visible && liquidGlass && !dragging
+    }
+
+    fun shouldCapture(
+        hostStarted: Boolean,
+        visible: Boolean,
+        liquidGlass: Boolean,
+        dragging: Boolean,
+        capturePending: Boolean,
+        width: Int,
+        height: Int,
+    ): Boolean {
+        return shouldSchedule(hostStarted, visible, liquidGlass, dragging) &&
+            !capturePending &&
+            width > 0 &&
+            height > 0
+    }
+}
 
 internal object LiquidHomeController {
     val navigation = mutableStateOf(LiquidNavigationState())
     val snapshot = mutableStateOf<LiquidSnapshot?>(null)
     val dragging = mutableStateOf(false)
-    val mainHandler = Handler(Looper.getMainLooper())
 
     private var channel: MethodChannel? = null
+    private var captureStateListener: (() -> Unit)? = null
 
     fun attach(messenger: BinaryMessenger) {
         channel?.setMethodCallHandler(null)
@@ -41,10 +66,15 @@ internal object LiquidHomeController {
     fun detach() {
         channel?.setMethodCallHandler(null)
         channel = null
+        captureStateListener = null
         navigation.value = LiquidNavigationState()
-        snapshot.value?.bitmap?.takeUnless(Bitmap::isRecycled)?.recycle()
         snapshot.value = null
         dragging.value = false
+    }
+
+    fun setCaptureStateListener(listener: (() -> Unit)?) {
+        captureStateListener = listener
+        listener?.invoke()
     }
 
     fun select(index: Int) {
@@ -52,19 +82,33 @@ internal object LiquidHomeController {
         if (index !in state.labels.indices) {
             return
         }
-        navigation.value = state.copy(selectedIndex = index)
+        updateNavigation(state.copy(selectedIndex = index))
         channel?.invokeMethod("onSelected", index)
     }
 
-    fun updateSnapshot(bitmap: Bitmap, image: ImageBitmap) {
-        val previous = snapshot.value
-        snapshot.value = LiquidSnapshot(bitmap, image)
-        if (previous != null) {
-            mainHandler.postDelayed(
-                { if (!previous.bitmap.isRecycled) previous.bitmap.recycle() },
-                500L,
-            )
+    fun setDragging(value: Boolean) {
+        if (dragging.value == value) {
+            return
         }
+        dragging.value = value
+        captureStateListener?.invoke()
+    }
+
+    fun updateSnapshot(bitmap: Bitmap, image: ImageBitmap) {
+        snapshot.value = LiquidSnapshot(bitmap, image)
+    }
+
+    fun clearSnapshot() {
+        snapshot.value = null
+    }
+
+    private fun updateNavigation(state: LiquidNavigationState) {
+        navigation.value = state
+        if (!state.visible || !state.liquidGlass) {
+            snapshot.value = null
+            dragging.value = false
+        }
+        captureStateListener?.invoke()
     }
 
     private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -83,18 +127,21 @@ internal object LiquidHomeController {
                 } else {
                     requestedIndex.coerceIn(0, labels.lastIndex)
                 }
-                navigation.value = LiquidNavigationState(
-                    visible = arguments["visible"] as? Boolean ?: false,
-                    labels = labels,
-                    pageKeys = pageKeys,
-                    selectedIndex = selectedIndex,
-                    dark = arguments["dark"] as? Boolean ?: false,
-                    rtl = arguments["rtl"] as? Boolean ?: false,
+                updateNavigation(
+                    LiquidNavigationState(
+                        visible = arguments["visible"] as? Boolean ?: false,
+                        labels = labels,
+                        pageKeys = pageKeys,
+                        selectedIndex = selectedIndex,
+                        liquidGlass = arguments["liquidGlass"] as? Boolean ?: false,
+                        dark = arguments["dark"] as? Boolean ?: false,
+                        rtl = arguments["rtl"] as? Boolean ?: false,
+                    ),
                 )
                 result.success(null)
             }
             "hide" -> {
-                navigation.value = navigation.value.copy(visible = false)
+                updateNavigation(navigation.value.copy(visible = false))
                 result.success(null)
             }
             else -> result.notImplemented()
