@@ -114,6 +114,7 @@ dependencies {
     implementation(libs.firebase.crashlytics.ndk)
     implementation(libs.firebase.analytics)
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation(platform("androidx.compose:compose-bom:2026.06.01"))
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material:material")
