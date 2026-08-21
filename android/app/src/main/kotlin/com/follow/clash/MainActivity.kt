@@ -10,6 +10,8 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.follow.clash.plugins.AppPlugin
@@ -22,7 +24,12 @@ import io.flutter.embedding.android.TransparencyMode
 import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
+    private companion object {
+        const val LIQUID_STATE_KEY = "liquid-compose-state"
+    }
+
     private lateinit var liquidOverlay: ComposeView
+    private lateinit var liquidTreeOwner: LiquidComposeTreeOwner
     private var textureView: FlutterTextureView? = null
     private var textureSurface: Surface? = null
     private var capturePending = false
@@ -40,6 +47,10 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val root = findViewById<ViewGroup>(android.R.id.content)
+        liquidTreeOwner = LiquidComposeTreeOwner(
+            lifecycleOwner = this,
+            restoredState = savedInstanceState?.getBundle(LIQUID_STATE_KEY),
+        )
         liquidOverlay = ComposeView(this).apply {
             setViewCompositionStrategy(
                 ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed,
@@ -48,7 +59,9 @@ class MainActivity : FlutterActivity() {
                 LiquidHomeOverlay()
             }
         }
-        liquidOverlay.setViewTreeLifecycleOwner(this)
+        liquidOverlay.setViewTreeLifecycleOwner(liquidTreeOwner)
+        liquidOverlay.setViewTreeSavedStateRegistryOwner(liquidTreeOwner)
+        liquidOverlay.setViewTreeViewModelStoreOwner(liquidTreeOwner)
         root.addView(
             liquidOverlay,
             FrameLayout.LayoutParams(
@@ -117,6 +130,15 @@ class MainActivity : FlutterActivity() {
         )
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        if (::liquidTreeOwner.isInitialized) {
+            val liquidState = Bundle()
+            liquidTreeOwner.save(liquidState)
+            outState.putBundle(LIQUID_STATE_KEY, liquidState)
+        }
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onDestroy() {
         if (::liquidOverlay.isInitialized) {
             liquidOverlay.removeCallbacks(captureRunnable)
@@ -126,6 +148,9 @@ class MainActivity : FlutterActivity() {
         textureSurface = null
         textureView = null
         LiquidHomeController.detach()
+        if (::liquidTreeOwner.isInitialized) {
+            liquidTreeOwner.clear()
+        }
         flutterEngine?.let(ServiceState::detachFlutterEngine)
         super.onDestroy()
     }
