@@ -79,7 +79,7 @@ internal object LiquidHomeController {
 
     fun select(index: Int) {
         val state = navigation.value
-        if (index !in state.labels.indices) {
+        if (index !in state.labels.indices || index == state.selectedIndex) {
             return
         }
         updateNavigation(state.copy(selectedIndex = index))

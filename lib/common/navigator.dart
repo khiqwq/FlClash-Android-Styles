@@ -80,13 +80,15 @@ const commonSharedXPageTransitions = SharedAxisPageTransitionsBuilder(
 );
 const commonSurfaceSharedXPageTransitions =
     SurfaceSharedAxisPageTransitionsBuilder();
+const commonAndroidSideSlidePageTransitions =
+    StableSideSlidePageTransitionsBuilder();
 
 PageTransitionsTheme buildPageTransitionsTheme({required bool predictiveBack}) {
   return PageTransitionsTheme(
     builders: <TargetPlatform, PageTransitionsBuilder>{
       TargetPlatform.android: predictiveBack
           ? const DirectPreviousPredictiveBackPageTransitionsBuilder()
-          : commonSurfaceSharedXPageTransitions,
+          : commonAndroidSideSlidePageTransitions,
       TargetPlatform.windows: commonSharedXPageTransitions,
       TargetPlatform.linux: commonSharedXPageTransitions,
       TargetPlatform.macOS: commonSharedXPageTransitions,
@@ -127,6 +129,38 @@ class SurfaceSharedAxisPageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
+class StableSideSlidePageTransitionsBuilder extends PageTransitionsBuilder {
+  const StableSideSlidePageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final surface = Theme.of(context).colorScheme.surface;
+    return SlideTransition(
+      position: secondaryAnimation.drive(
+        Tween<Offset>(begin: Offset.zero, end: const Offset(-0.08, 0)),
+      ),
+      textDirection: Directionality.of(context),
+      child: SlideTransition(
+        position: animation.drive(
+          Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero),
+        ),
+        textDirection: Directionality.of(context),
+        child: ColoredBox(
+          key: const ValueKey('common-route-transition-surface'),
+          color: surface,
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 class DirectPreviousPredictiveBackPageTransitionsBuilder
     extends PredictiveBackPageTransitionsBuilder {
   const DirectPreviousPredictiveBackPageTransitionsBuilder({
@@ -141,13 +175,29 @@ class DirectPreviousPredictiveBackPageTransitionsBuilder
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    final surface = fallbackColor ?? Theme.of(context).colorScheme.surface;
+    final primaryPosition = animation.drive(
+      Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero),
+    );
+    final secondaryPosition = secondaryAnimation.drive(
+      Tween<Offset>(begin: Offset.zero, end: const Offset(-0.08, 0)),
+    );
     return _DirectPreviousBackPreview(
       route: route,
-      surface: fallbackColor ?? Theme.of(context).colorScheme.surface,
-      child: SurfaceSharedAxisPageTransitionsBuilder(
-        fillColor: fallbackColor,
-        includeSurface: false,
-      ).buildTransitions(route, context, animation, secondaryAnimation, child),
+      surface: surface,
+      child: SlideTransition(
+        position: secondaryPosition,
+        textDirection: Directionality.of(context),
+        child: SlideTransition(
+          position: primaryPosition,
+          textDirection: Directionality.of(context),
+          child: ColoredBox(
+            key: const ValueKey('common-route-transition-surface'),
+            color: surface,
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -693,12 +743,7 @@ class _DirectPreviousBackPreviewState
 
   @override
   Widget build(BuildContext context) {
-    final surface = ColoredBox(
-      key: const ValueKey('common-route-transition-surface'),
-      color: _previousRouteVisible ? Colors.transparent : widget.surface,
-      child: widget.child,
-    );
-    return IgnorePointer(ignoring: _previousRouteVisible, child: surface);
+    return IgnorePointer(ignoring: _previousRouteVisible, child: widget.child);
   }
 }
 

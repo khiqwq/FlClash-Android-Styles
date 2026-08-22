@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -101,10 +100,6 @@ class _NativeLiquidNavigationBridgeState
     'com.follow.clash/liquid_navigation',
   );
 
-  _NativeLiquidNavigationPayload? _lastPayload;
-  _NativeLiquidNavigationPayload? _pendingPayload;
-  bool _synchronizationScheduled = false;
-
   @override
   void initState() {
     super.initState();
@@ -138,103 +133,29 @@ class _NativeLiquidNavigationBridgeState
     if (!mounted) {
       return;
     }
-    final payload = _NativeLiquidNavigationPayload(
-      visible: nativeLiquidNavigationRouteDepth.value == 0,
-      labels: List<String>.unmodifiable(widget.labels),
-      pageKeys: List<String>.unmodifiable(widget.pageKeys),
-      selectedIndex: widget.selectedIndex,
-      liquidGlass: widget.liquidGlass,
-      dark: Theme.brightnessOf(context) == Brightness.dark,
-      rtl: Directionality.of(context) == TextDirection.rtl,
+    final brightness = Theme.brightnessOf(context);
+    final direction = Directionality.of(context);
+    unawaited(
+      _channel.invokeMethod<void>('update', <String, Object>{
+        'visible': nativeLiquidNavigationRouteDepth.value == 0,
+        'labels': widget.labels,
+        'pageKeys': widget.pageKeys,
+        'selectedIndex': widget.selectedIndex,
+        'liquidGlass': widget.liquidGlass,
+        'dark': brightness == Brightness.dark,
+        'rtl': direction == TextDirection.rtl,
+      }),
     );
-    if (payload == _lastPayload || payload == _pendingPayload) {
-      return;
-    }
-    _pendingPayload = payload;
-    if (_synchronizationScheduled) {
-      return;
-    }
-    _synchronizationScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _synchronizationScheduled = false;
-      if (!mounted) {
-        return;
-      }
-      final nextPayload = _pendingPayload;
-      _pendingPayload = null;
-      if (nextPayload == null || nextPayload == _lastPayload) {
-        return;
-      }
-      _lastPayload = nextPayload;
-      unawaited(_channel.invokeMethod<void>('update', nextPayload.toMap()));
-    });
   }
 
   @override
   void dispose() {
     nativeLiquidNavigationRouteDepth.removeListener(_synchronize);
     _channel.setMethodCallHandler(null);
-    _pendingPayload = null;
     unawaited(_channel.invokeMethod<void>('hide'));
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => widget.child;
-}
-
-@immutable
-class _NativeLiquidNavigationPayload {
-  final bool visible;
-  final List<String> labels;
-  final List<String> pageKeys;
-  final int selectedIndex;
-  final bool liquidGlass;
-  final bool dark;
-  final bool rtl;
-
-  const _NativeLiquidNavigationPayload({
-    required this.visible,
-    required this.labels,
-    required this.pageKeys,
-    required this.selectedIndex,
-    required this.liquidGlass,
-    required this.dark,
-    required this.rtl,
-  });
-
-  Map<String, Object> toMap() {
-    return <String, Object>{
-      'visible': visible,
-      'labels': labels,
-      'pageKeys': pageKeys,
-      'selectedIndex': selectedIndex,
-      'liquidGlass': liquidGlass,
-      'dark': dark,
-      'rtl': rtl,
-    };
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is _NativeLiquidNavigationPayload &&
-        other.visible == visible &&
-        listEquals(other.labels, labels) &&
-        listEquals(other.pageKeys, pageKeys) &&
-        other.selectedIndex == selectedIndex &&
-        other.liquidGlass == liquidGlass &&
-        other.dark == dark &&
-        other.rtl == rtl;
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    visible,
-    Object.hashAll(labels),
-    Object.hashAll(pageKeys),
-    selectedIndex,
-    liquidGlass,
-    dark,
-    rtl,
-  );
 }

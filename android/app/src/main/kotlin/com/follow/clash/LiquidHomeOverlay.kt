@@ -21,9 +21,9 @@ import androidx.compose.material.lightColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -59,17 +59,25 @@ fun LiquidHomeOverlay() {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.BottomCenter,
             ) {
-                val frame = snapshot
-                if (navigation.liquidGlass && frame != null) {
-                    Image(
-                        bitmap = frame.image,
-                        contentDescription = null,
-                        contentScale = ContentScale.FillBounds,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .alpha(0f)
-                            .layerBackdrop(backdrop),
-                    )
+                if (navigation.liquidGlass) {
+                    val frame = snapshot
+                    if (frame != null) {
+                        Image(
+                            bitmap = frame.image,
+                            contentDescription = null,
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(0f)
+                                .layerBackdrop(backdrop),
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .layerBackdrop(backdrop),
+                        )
+                    }
                 }
                 LiquidBottomTabs(
                     selectedTabIndex = { navigation.selectedIndex },

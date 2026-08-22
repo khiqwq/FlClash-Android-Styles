@@ -29,11 +29,11 @@ void main() {
     );
     expect(
       legacy.builders[TargetPlatform.android],
-      same(commonSurfaceSharedXPageTransitions),
+      same(commonAndroidSideSlidePageTransitions),
     );
     expect(
       legacy.builders[TargetPlatform.android],
-      isA<SurfaceSharedAxisPageTransitionsBuilder>(),
+      isA<StableSideSlidePageTransitionsBuilder>(),
     );
     expect(
       predictive.builders[TargetPlatform.windows],
