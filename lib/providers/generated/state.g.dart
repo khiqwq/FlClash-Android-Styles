@@ -629,7 +629,7 @@ final class InterfaceStyleThemeProvider
 }
 
 String _$interfaceStyleThemeHash() =>
-    r'16d6aeb22701f9fc5c129a57ee9909371d4fb576';
+    r'cdce7026a07c30362c7869cddfd1cdbfd47d2e79';
 
 @ProviderFor(genColorScheme)
 final genColorSchemeProvider = GenColorSchemeFamily._();

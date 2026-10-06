@@ -28,22 +28,23 @@ class DynamicColor extends _$DynamicColor {
 
 @riverpod
 InterfaceStyleTheme interfaceStyleTheme(Ref ref) {
-  if (!system.isAndroid) {
-    return const InterfaceStyleTheme();
-  }
-  final props = ref.watch(
+  final isAndroid = system.isAndroid;
+  return ref.watch(
     themeSettingProvider.select(
-      (state) => (
-        style: state.interfaceStyle,
-        miuixMonet: state.miuixMonet,
-        barBlur: state.barBlur,
-        liquidGlass: state.liquidGlass,
-        predictiveBack: state.predictiveBack,
-      ),
+      (state) => interfaceStyleThemeOf(state, isAndroid: isAndroid),
     ),
   );
+}
+
+InterfaceStyleTheme interfaceStyleThemeOf(
+  ThemeProps props, {
+  required bool isAndroid,
+}) {
+  if (!isAndroid) {
+    return const InterfaceStyleTheme();
+  }
   return InterfaceStyleTheme(
-    style: props.style,
+    style: props.interfaceStyle,
     miuixMonet: props.miuixMonet,
     barBlur: props.barBlur,
     liquidGlass: props.liquidGlass,

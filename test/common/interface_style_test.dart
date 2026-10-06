@@ -1,5 +1,6 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +31,45 @@ void main() {
 
     expect(container.read(interfaceStyleThemeProvider).isMiuix, isFalse);
     expect(container.read(interfaceStyleThemeProvider).liquidGlass, isFalse);
+  });
+
+  test('Android carries each interface setting into the extension', () {
+    const base = ThemeProps();
+    final cases = [
+      (base, const InterfaceStyleTheme(predictiveBack: true)),
+      (
+        base.copyWith(interfaceStyle: InterfaceStyle.miuix),
+        const InterfaceStyleTheme(
+          style: InterfaceStyle.miuix,
+          predictiveBack: true,
+        ),
+      ),
+      (
+        base.copyWith(miuixMonet: true),
+        const InterfaceStyleTheme(miuixMonet: true, predictiveBack: true),
+      ),
+      (
+        base.copyWith(barBlur: true),
+        const InterfaceStyleTheme(barBlur: true, predictiveBack: true),
+      ),
+      (
+        base.copyWith(liquidGlass: true),
+        const InterfaceStyleTheme(liquidGlass: true, predictiveBack: true),
+      ),
+      (base.copyWith(predictiveBack: false), const InterfaceStyleTheme()),
+    ];
+    for (final (props, expected) in cases) {
+      expect(
+        interfaceStyleThemeOf(props, isAndroid: true),
+        expected,
+        reason: '$props',
+      );
+      expect(
+        interfaceStyleThemeOf(props, isAndroid: false),
+        const InterfaceStyleTheme(),
+        reason: '$props',
+      );
+    }
   });
 
   test('Miuix without Monet uses the stock Miuix palette', () {
