@@ -119,6 +119,7 @@ class _HomeShell extends ConsumerWidget {
                   bottom: 0,
                   child: AnimatedVisibility.bottomNavigation(
                     visible: isMobile && floating,
+                    fade: !context.interfaceStyle.liquidGlass,
                     child: _NavigationPadding(
                       child: NavigationDock(
                         destinations: [

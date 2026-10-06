@@ -12,11 +12,13 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/views/tools.dart';
+import 'package:fl_clash/widgets/liquid_glass.dart';
 import 'package:fl_clash/widgets/miuix_navigation_bar.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:fl_clash/views/navigation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -972,6 +974,46 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    Future<double> floatMidway(
+      WidgetTester tester,
+      ProviderContainer container,
+    ) async {
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(floatingNavigationBar: true));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      final fade = find.ancestor(
+        of: find.byType(NavigationDock),
+        matching: find.byType(FadeTransition),
+      );
+      return tester.widget<FadeTransition>(fade.first).opacity.value;
+    }
+
+    testWidgets('gives way to a floating dock that fades in', (tester) async {
+      final container = await pumpDocked(tester, const InterfaceStyleTheme());
+
+      expect(
+        await floatMidway(tester, container),
+        allOf(greaterThan(0), lessThan(1)),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('gives way to a glass dock that slides in over its backdrop', (
+      tester,
+    ) async {
+      final container = await pumpDocked(
+        tester,
+        const InterfaceStyleTheme(liquidGlass: true),
+      );
+
+      expect(await floatMidway(tester, container), 1);
+      final glass = tester.layers.whereType<BackdropFilterLayer>().single;
+      expect(backdropTransform(glass), isNotNull);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('the fade tab switch cross-fades the pages in place', (
