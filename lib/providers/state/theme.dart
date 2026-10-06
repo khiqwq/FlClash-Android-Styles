@@ -35,6 +35,7 @@ InterfaceStyleTheme interfaceStyleTheme(Ref ref) {
     themeSettingProvider.select(
       (state) => (
         style: state.interfaceStyle,
+        miuixMonet: state.miuixMonet,
         barBlur: state.barBlur,
         liquidGlass: state.liquidGlass,
         predictiveBack: state.predictiveBack,
@@ -43,6 +44,7 @@ InterfaceStyleTheme interfaceStyleTheme(Ref ref) {
   );
   return InterfaceStyleTheme(
     style: props.style,
+    miuixMonet: props.miuixMonet,
     barBlur: props.barBlur,
     liquidGlass: props.liquidGlass,
     predictiveBack: props.predictiveBack,

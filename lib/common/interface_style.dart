@@ -1,3 +1,4 @@
+import 'package:fl_clash/common/shape.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -5,12 +6,16 @@ import 'package:material_ui/material_ui.dart';
 class InterfaceStyleTheme extends ThemeExtension<InterfaceStyleTheme> {
   const InterfaceStyleTheme({
     this.style = InterfaceStyle.material,
+    this.miuixMonet = false,
     this.barBlur = false,
     this.liquidGlass = false,
     this.predictiveBack = false,
   });
 
   final InterfaceStyle style;
+
+  /// Off, Miuix runs on its stock palette rather than one seeded from a color.
+  final bool miuixMonet;
   final bool barBlur;
   final bool liquidGlass;
   final bool predictiveBack;
@@ -20,12 +25,14 @@ class InterfaceStyleTheme extends ThemeExtension<InterfaceStyleTheme> {
   @override
   InterfaceStyleTheme copyWith({
     InterfaceStyle? style,
+    bool? miuixMonet,
     bool? barBlur,
     bool? liquidGlass,
     bool? predictiveBack,
   }) {
     return InterfaceStyleTheme(
       style: style ?? this.style,
+      miuixMonet: miuixMonet ?? this.miuixMonet,
       barBlur: barBlur ?? this.barBlur,
       liquidGlass: liquidGlass ?? this.liquidGlass,
       predictiveBack: predictiveBack ?? this.predictiveBack,
@@ -44,13 +51,15 @@ class InterfaceStyleTheme extends ThemeExtension<InterfaceStyleTheme> {
   bool operator ==(Object other) {
     return other is InterfaceStyleTheme &&
         other.style == style &&
+        other.miuixMonet == miuixMonet &&
         other.barBlur == barBlur &&
         other.liquidGlass == liquidGlass &&
         other.predictiveBack == predictiveBack;
   }
 
   @override
-  int get hashCode => Object.hash(style, barBlur, liquidGlass, predictiveBack);
+  int get hashCode =>
+      Object.hash(style, miuixMonet, barBlur, liquidGlass, predictiveBack);
 }
 
 extension InterfaceStyleContext on BuildContext {
@@ -59,16 +68,98 @@ extension InterfaceStyleContext on BuildContext {
       const InterfaceStyleTheme();
 }
 
+const _miuixDialogCorner = 32.0;
+const _miuixDividerThickness = 0.75;
+const _mutedAlpha = 0.38;
+
 extension InterfaceStyleThemeData on ThemeData {
   ThemeData withInterfaceStyle(InterfaceStyleTheme interfaceStyle) {
-    return copyWith(
+    final themed = copyWith(
       extensions: [
         for (final extension in extensions.values)
           if (extension is! InterfaceStyleTheme) extension,
         interfaceStyle,
       ],
     );
+    return interfaceStyle.isMiuix
+        ? themed._withMiuixComponents(monet: interfaceStyle.miuixMonet)
+        : themed;
   }
+
+  ThemeData _withMiuixComponents({required bool monet}) {
+    final colors = colorScheme;
+    ({Color track, Color thumb}) switchColors(Set<WidgetState> states) =>
+        miuixSwitchColors(
+          colors,
+          selected: states.contains(WidgetState.selected),
+          enabled: !states.contains(WidgetState.disabled),
+          monet: monet,
+        );
+    return copyWith(
+      splashFactory: NoSplash.splashFactory,
+      highlightColor: colors.onSurface.withValues(alpha: 0.1),
+      focusColor: colors.onSurface.withValues(alpha: 0.08),
+      hoverColor: colors.onSurface.withValues(alpha: 0.06),
+      scaffoldBackgroundColor: colors.surface,
+      canvasColor: colors.surface,
+      cardTheme: cardTheme.copyWith(
+        color: colors.surfaceContainer,
+        elevation: 0,
+      ),
+      dialogTheme: dialogTheme.copyWith(
+        backgroundColor: colors.surfaceContainer,
+        shape: AppShape.all(_miuixDialogCorner),
+      ),
+      bottomSheetTheme: bottomSheetTheme.copyWith(
+        backgroundColor: colors.surfaceContainer,
+        modalBackgroundColor: colors.surfaceContainer,
+      ),
+      dividerTheme: dividerTheme.copyWith(
+        color: colors.outlineVariant,
+        thickness: _miuixDividerThickness,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => switchColors(states).thumb,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => switchColors(states).track,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+    );
+  }
+}
+
+/// A Miuix switch: on, a primary track under an onPrimary thumb; off, the
+/// stock palette's grey track and white thumb, or Monet's outline track under
+/// a faint one. Disabled colors settle 38% of the way out of the surface.
+({Color track, Color thumb}) miuixSwitchColors(
+  ColorScheme colors, {
+  required bool selected,
+  required bool monet,
+  bool enabled = true,
+}) {
+  final Color track;
+  final Color thumb;
+  if (selected) {
+    track = colors.primary;
+    thumb = colors.onPrimary;
+  } else if (monet) {
+    track = colors.outlineVariant;
+    thumb = colors.onSurface.withValues(alpha: _mutedAlpha);
+  } else {
+    track = colors.secondary;
+    thumb = colors.onSecondary;
+  }
+  if (enabled) {
+    return (track: track, thumb: thumb);
+  }
+  Color dim(Color color) => Color.alphaBlend(
+    color.withValues(alpha: color.a * _mutedAlpha),
+    colors.surface,
+  );
+  return (track: dim(track), thumb: dim(thumb));
 }
 
 /// The stock Miuix palette (compose-miuix `lightColorScheme`/`darkColorScheme`)
