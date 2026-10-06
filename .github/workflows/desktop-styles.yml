@@ -1,0 +1,70 @@
+name: desktop-styles
+
+on:
+  push:
+    branches:
+      - 'desktop-styles'
+    paths-ignore:
+      - 'site/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.4'
+  GO_VERSION: '1.26.4'
+
+jobs:
+  windows:
+    name: Windows package
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-styles-windows
+          workspaces: |
+            services/helper
+            plugins/rust_api/rust
+          cache-directories: .dart_tool/hooks_runner
+
+      - name: Enable git long paths
+        run: git config --global core.longpaths true
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Package
+        run: dart setup.dart windows -v
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlClash-desktop-styles-windows-amd64-${{ github.sha }}
+          path: ./dist
+          if-no-files-found: error
