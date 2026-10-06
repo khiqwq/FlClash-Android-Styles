@@ -90,6 +90,13 @@
             </intent-filter>
         </activity>
 
+        <!-- url_launcher's WebView goes back a page from onKeyDown(KEYCODE_BACK), which an
+             opted-in activity never receives. Android 13 reads only the application flag. -->
+        <activity
+            android:name="io.flutter.plugins.urllauncher.WebViewActivity"
+            android:enableOnBackInvokedCallback="false"
+            tools:node="merge" />
+
         <service
             android:name=".TileService"
             android:exported="true"
