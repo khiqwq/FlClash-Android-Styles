@@ -169,7 +169,6 @@ class ApplicationState extends ConsumerState<Application> {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           navigatorKey: globalState.navigatorKey,
-          onNavigationNotification: (_) => true,
           localizationsDelegates: const [
             AppLocalizations.delegate,
             ...GlobalMaterialLocalizations.delegates,

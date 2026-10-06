@@ -518,6 +518,9 @@ class _FadeTabPage extends StatelessWidget {
   }
 }
 
+// Below Android 13 back still reaches Flutter, which finishes a root activity.
+const _systemBackSdk = 33;
+
 class HomeBackScopeContainer extends ConsumerWidget {
   final Widget child;
 
@@ -525,23 +528,31 @@ class HomeBackScopeContainer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
+    final systemBack =
+        context.interfaceStyle.predictiveBack &&
+        !system.isTV &&
+        ref.watch(versionProvider) >= _systemBackSdk &&
+        ref.watch(isMobileViewProvider) &&
+        ref.watch(appSettingProvider.select((state) => state.minimizeOnExit));
     return CommonPopScope(
-      onPop: (context) async {
-        final pageLabel = ref.read(currentPageLabelProvider);
-        final realContext =
-            GlobalObjectKey(pageLabel).currentContext ?? context;
-        final canPop = Navigator.canPop(realContext);
-        if (canPop) {
-          Navigator.of(realContext).pop();
-        } else if (system.isTV && pageLabel != PageLabel.dashboard) {
-          ref
-              .read(currentPageLabelProvider.notifier)
-              .toPage(PageLabel.dashboard);
-        } else {
-          await ref.read(systemActionProvider.notifier).handleClose();
-        }
-        return false;
-      },
+      onPop: systemBack
+          ? null
+          : (context) async {
+              final pageLabel = ref.read(currentPageLabelProvider);
+              final realContext =
+                  GlobalObjectKey(pageLabel).currentContext ?? context;
+              final canPop = Navigator.canPop(realContext);
+              if (canPop) {
+                Navigator.of(realContext).pop();
+              } else if (system.isTV && pageLabel != PageLabel.dashboard) {
+                ref
+                    .read(currentPageLabelProvider.notifier)
+                    .toPage(PageLabel.dashboard);
+              } else {
+                await ref.read(systemActionProvider.notifier).handleClose();
+              }
+              return false;
+            },
       child: child,
     );
   }
